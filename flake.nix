@@ -3,12 +3,18 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, flake-utils, treefmt-nix }:
   let
     supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
     forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
+    # Version from VERSION file
+    version = nixpkgs.lib.strings.trim (builtins.readFile ./VERSION);
 
     # Import our library
     mkLib = pkgs: import ./lib {
@@ -16,10 +22,22 @@
       inherit pkgs;
     };
 
+    # Treefmt configuration for code formatting
+    treefmtEval = system: treefmt-nix.lib.evalModule nixpkgs.legacyPackages.${system} {
+      projectRootFile = "flake.nix";
+      programs.nixfmt-rfc-style.enable = true;
+      programs.shfmt.enable = true;
+      programs.prettier.enable = true;
+      settings.formatter.prettier.includes = [ "*.md" "*.json" "*.yaml" "*.yml" ];
+    };
+
   in {
     #
     # SYSTEM-AGNOSTIC EXPORTS
     #
+
+    # Version info
+    inherit version;
 
     # Core library - user passes pkgs explicitly
     lib = {
@@ -34,6 +52,9 @@
         presets = import ./lib/validation/presets.nix { inherit (nixpkgs) lib; };
         validators = import ./lib/validation/validators.nix { inherit (nixpkgs) lib; };
       };
+
+      # Version utilities
+      version = import ./lib/version.nix { inherit (nixpkgs) lib; };
 
       # Instantiate model definitions with pkgs
       instantiate = pkgs: defs:
@@ -93,22 +114,136 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in {
+        # Documentation
+        docs = pkgs.stdenvNoCC.mkDerivation {
+          pname = "nix-ai-models-docs";
+          inherit version;
+          src = ./docs/sphinx;
+
+          nativeBuildInputs = with pkgs.python3Packages; [
+            sphinx
+            furo
+            myst-parser
+            sphinx-copybutton
+          ];
+
+          buildPhase = ''
+            runHook preBuild
+            sphinx-build -b html . $out
+            runHook postBuild
+          '';
+
+          dontInstall = true;
+        };
+
         # CLI tool will be added here
         # default = self.packages.${system}.nix-ai-model;
       }
     );
 
-    # Development shell
+    # Formatting
+    formatter = forAllSystems (system:
+      (treefmtEval system).config.build.wrapper
+    );
+
+    # Development shells
     devShells = forAllSystems (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        treefmtBuild = (treefmtEval system).config.build;
       in {
+        # Default development shell
         default = pkgs.mkShell {
-          packages = [
-            pkgs.jq
-            pkgs.curl
-            pkgs.shellcheck
+          name = "nix-ai-models-dev";
+
+          packages = with pkgs; [
+            # Nix tools
+            nix-prefetch
+            nix-prefetch-git
+            nixfmt-rfc-style
+            nil  # Nix LSP
+
+            # Shell tools
+            shellcheck
+            shfmt
+            jq
+            yq-go
+            curl
+            wget
+
+            # Git
+            git
+            gh  # GitHub CLI
+
+            # Documentation
+            python3Packages.sphinx
+            python3Packages.furo
+            python3Packages.myst-parser
+            python3Packages.sphinx-copybutton
+
+            # Formatting
+            treefmtBuild.wrapper
+            nodePackages.prettier
+
+            # Testing
+            bats  # Bash testing
+
+            # CI tools
+            actionlint  # GitHub Actions linter
+            act  # Run GitHub Actions locally
           ];
+
+          shellHook = ''
+            echo "nix-ai-models development shell v${version}"
+            echo ""
+            echo "Available commands:"
+            echo "  nix flake check    - Run all checks"
+            echo "  nix fmt            - Format code"
+            echo "  nix build .#docs   - Build documentation"
+            echo "  bats tests/        - Run tests"
+            echo "  actionlint         - Lint GitHub Actions"
+            echo ""
+          '';
+
+          # Environment variables
+          NIX_AI_MODELS_VERSION = version;
+        };
+
+        # CI shell (minimal, for GitHub Actions)
+        ci = pkgs.mkShell {
+          name = "nix-ai-models-ci";
+
+          packages = with pkgs; [
+            nix-prefetch
+            shellcheck
+            shfmt
+            jq
+            treefmtBuild.wrapper
+          ];
+
+          NIX_AI_MODELS_VERSION = version;
+        };
+
+        # Documentation shell
+        docs = pkgs.mkShell {
+          name = "nix-ai-models-docs";
+
+          packages = with pkgs; [
+            python3Packages.sphinx
+            python3Packages.furo
+            python3Packages.myst-parser
+            python3Packages.sphinx-copybutton
+            python3Packages.sphinx-autobuild
+          ];
+
+          shellHook = ''
+            echo "Documentation development shell"
+            echo ""
+            echo "Commands:"
+            echo "  cd docs/sphinx && sphinx-build -b html . _build/html"
+            echo "  cd docs/sphinx && sphinx-autobuild . _build/html"
+            echo ""
+          '';
         };
       }
     );
@@ -119,9 +254,33 @@
         pkgs = nixpkgs.legacyPackages.${system};
         lib' = mkLib pkgs;
       in {
+        # Formatting check
+        formatting = (treefmtEval system).config.build.check self;
+
         # Type validation tests
         types = pkgs.runCommand "test-types" {} ''
-          echo "Type tests would run here"
+          echo "Testing type validation..."
+          # TODO: Add actual tests
+          touch $out
+        '';
+
+        # Shell script linting
+        shellcheck = pkgs.runCommand "shellcheck" {
+          nativeBuildInputs = [ pkgs.shellcheck ];
+        } ''
+          echo "Linting shell scripts..."
+          find ${./fetchers} -name "*.sh" -exec shellcheck {} +
+          touch $out
+        '';
+
+        # Build documentation
+        docs = self.packages.${system}.docs;
+
+        # Nix file evaluation
+        eval = pkgs.runCommand "test-eval" {} ''
+          echo "Testing Nix evaluation..."
+          # Ensure flake evaluates without errors
+          echo "Flake version: ${version}"
           touch $out
         '';
       }
