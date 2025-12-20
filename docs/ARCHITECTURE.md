@@ -16,6 +16,9 @@
 12. [CLI Tool](#12-cli-tool)
 13. [Error Handling](#13-error-handling)
 14. [Configuration Schema](#14-configuration-schema)
+15. [Validation Presets & Patterns](#15-validation-presets--patterns)
+16. [Source Reuse Patterns](#16-source-reuse-patterns)
+17. [Flake Structure & Exports](#17-flake-structure--exports)
 
 ---
 
@@ -1787,11 +1790,940 @@ fetchModel
 
 ---
 
+## 15. Validation Presets & Patterns
+
+### 15.1 Validation Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         VALIDATION PIPELINE                                  │
+│                                                                              │
+│  Phase 1: FOD Fetch                 Phase 2: Validation                      │
+│  ───────────────────                ──────────────────                       │
+│  ┌─────────────────┐               ┌─────────────────┐                      │
+│  │ Download files  │               │ Security scans  │                      │
+│  │ (network)       │──────────────▶│ Custom hooks    │                      │
+│  │                 │               │ (no network)    │                      │
+│  └─────────────────┘               └─────────────────┘                      │
+│         │                                   │                                │
+│         ▼                                   ▼                                │
+│  Hash verified by Nix               Validators execute                       │
+│  (FOD guarantee)                    (can fail build)                         │
+│                                                                              │
+│  Output: rawModels.x.y              Output: models.x.y                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 Built-in Validation Presets
+
+```nix
+# lib/validation/presets.nix
+
+{
+  # Preset: Strict (production deployments)
+  strict = {
+    enable = true;
+    defaults = {
+      modelscan = true;      # Scan for malicious serialized objects
+      pickleScan = true;     # Scan pickle files for dangerous ops
+      checksums = true;      # Verify file integrity
+    };
+    validators = [
+      validators.noPickleFiles
+      validators.safetensorsOnly
+      validators.licenseCheck
+    ];
+    onFailure = "abort";
+    timeout = 600;  # 10 minutes for large models
+  };
+
+  # Preset: Standard (default for most use cases)
+  standard = {
+    enable = true;
+    defaults = {
+      modelscan = true;
+      pickleScan = true;
+      checksums = true;
+    };
+    validators = [];
+    onFailure = "abort";
+    timeout = 300;
+  };
+
+  # Preset: Minimal (CI/testing, faster builds)
+  minimal = {
+    enable = true;
+    defaults = {
+      modelscan = false;
+      pickleScan = false;
+      checksums = true;  # Always verify integrity
+    };
+    validators = [];
+    onFailure = "warn";
+    timeout = 60;
+  };
+
+  # Preset: None (raw data only, skip all validation)
+  none = {
+    enable = false;
+  };
+
+  # Preset: Paranoid (maximum security)
+  paranoid = {
+    enable = true;
+    defaults = {
+      modelscan = true;
+      pickleScan = true;
+      checksums = true;
+    };
+    validators = [
+      validators.noPickleFiles
+      validators.safetensorsOnly
+      validators.noPythonCode
+      validators.maxSize "50G"
+      validators.licenseCheck
+      validators.signatureVerify
+    ];
+    onFailure = "abort";
+    timeout = 1200;
+  };
+}
+```
+
+### 15.3 Built-in Validators
+
+```nix
+# lib/validation/validators.nix
+
+{
+  # Reject pickle files entirely
+  noPickleFiles = {
+    name = "no-pickle";
+    description = "Ensure no pickle files are present";
+    command = ''
+      shopt -s nullglob globstar
+      pickles=($src/**/*.pkl $src/**/*.pickle)
+      if [[ ''${#pickles[@]} -gt 0 ]]; then
+        echo "ERROR: Pickle files detected:" >&2
+        printf '  %s\n' "''${pickles[@]}" >&2
+        echo "Use safetensors format instead for security." >&2
+        exit 1
+      fi
+    '';
+    onFailure = "abort";
+  };
+
+  # Require safetensors format for weights
+  safetensorsOnly = {
+    name = "safetensors-only";
+    description = "Ensure model uses safetensors format";
+    command = ''
+      shopt -s nullglob
+      # Check for unsafe weight formats
+      unsafe=($(find $src -name "*.bin" -o -name "*.pt" -o -name "*.pth" 2>/dev/null))
+      if [[ ''${#unsafe[@]} -gt 0 ]]; then
+        echo "ERROR: Non-safetensors weights found:" >&2
+        printf '  %s\n' "''${unsafe[@]}" >&2
+        exit 1
+      fi
+      # Ensure safetensors exist
+      safetensors=($(find $src -name "*.safetensors" 2>/dev/null))
+      if [[ ''${#safetensors[@]} -eq 0 ]]; then
+        echo "WARNING: No safetensors files found" >&2
+      fi
+    '';
+    onFailure = "abort";
+  };
+
+  # Enforce maximum model size
+  maxSize = limit: {
+    name = "max-size-${limit}";
+    description = "Ensure model size is under ${limit}";
+    command = ''
+      limit_bytes=$(numfmt --from=iec ${limit})
+      actual_bytes=$(du -sb $src | cut -f1)
+      if [[ $actual_bytes -gt $limit_bytes ]]; then
+        actual_human=$(numfmt --to=iec $actual_bytes)
+        echo "ERROR: Model size $actual_human exceeds limit ${limit}" >&2
+        exit 1
+      fi
+    '';
+    onFailure = "abort";
+  };
+
+  # Verify required files exist
+  requiredFiles = files: {
+    name = "required-files";
+    description = "Verify required files are present";
+    command = lib.concatMapStrings (f: ''
+      if [[ ! -f "$src/${f}" ]]; then
+        echo "ERROR: Required file missing: ${f}" >&2
+        exit 1
+      fi
+    '') files;
+    onFailure = "abort";
+  };
+
+  # Reject Python code in model
+  noPythonCode = {
+    name = "no-python-code";
+    description = "Ensure no Python code is bundled";
+    command = ''
+      shopt -s nullglob globstar
+      pyfiles=($src/**/*.py $src/**/*.pyc $src/**/*.pyo)
+      if [[ ''${#pyfiles[@]} -gt 0 ]]; then
+        echo "ERROR: Python code found in model:" >&2
+        printf '  %s\n' "''${pyfiles[@]}" >&2
+        exit 1
+      fi
+    '';
+    onFailure = "abort";
+  };
+
+  # Check license compatibility
+  licenseCheck = {
+    name = "license-check";
+    description = "Verify license is acceptable";
+    command = ''
+      if [[ -f "$src/LICENSE" ]] || [[ -f "$src/LICENSE.md" ]] || [[ -f "$src/LICENSE.txt" ]]; then
+        echo "License file found"
+        # Could add license parsing logic here
+      else
+        echo "WARNING: No license file found" >&2
+      fi
+    '';
+    onFailure = "warn";
+  };
+
+  # Verify cryptographic signatures (if available)
+  signatureVerify = {
+    name = "signature-verify";
+    description = "Verify model signatures if present";
+    command = ''
+      if [[ -f "$src/.signatures.json" ]]; then
+        echo "Signature file found, verifying..."
+        # Signature verification logic
+      else
+        echo "No signature file found, skipping verification"
+      fi
+    '';
+    onFailure = "warn";
+  };
+
+  # Custom inline validator
+  custom = { name, script, onFailure ? "abort" }: {
+    inherit name onFailure;
+    description = "Custom validator: ${name}";
+    command = script;
+  };
+}
+```
+
+### 15.4 User Experience: Validation
+
+```nix
+let
+  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  presets = nix-ai-models.lib.validation.presets;
+  validators = nix-ai-models.lib.validation.validators;
+in {
+  # Use a preset directly
+  prod-model = fetchModel {
+    name = "mistral-prod";
+    source.huggingface.repo = "mistralai/Mistral-7B-v0.1";
+    hash = "sha256-abc...";
+    validation = presets.strict;
+  };
+
+  # Extend a preset with additional validators
+  custom-validated = fetchModel {
+    name = "my-model";
+    source.huggingface.repo = "my-org/my-model";
+    hash = "sha256-def...";
+    validation = presets.standard // {
+      validators = presets.standard.validators ++ [
+        (validators.maxSize "10G")
+        (validators.requiredFiles [ "config.json" "tokenizer.json" ])
+        (validators.custom {
+          name = "check-vocab-size";
+          script = ''
+            vocab_size=$(jq '.vocab_size' $src/config.json)
+            if [[ $vocab_size -gt 100000 ]]; then
+              echo "WARNING: Large vocabulary size: $vocab_size" >&2
+            fi
+          '';
+          onFailure = "warn";
+        })
+      ];
+    };
+  };
+
+  # Skip validation entirely (CI/testing)
+  ci-model = fetchModel {
+    name = "test-model";
+    source.huggingface.repo = "my-org/my-model";
+    hash = "sha256-def...";
+    validation = presets.none;
+  };
+
+  # Minimal validation for faster builds
+  dev-model = fetchModel {
+    name = "dev-model";
+    source.huggingface.repo = "my-org/my-model";
+    hash = "sha256-ghi...";
+    validation = presets.minimal;
+  };
+
+  # Maximum security for production
+  secure-model = fetchModel {
+    name = "secure-model";
+    source.huggingface.repo = "my-org/my-model";
+    hash = "sha256-jkl...";
+    validation = presets.paranoid;
+  };
+}
+```
+
+### 15.5 Validation Configuration Reference
+
+```nix
+validation = {
+  # Master switch - disable all validation
+  enable = true;  # default: true
+
+  # Built-in security scanners
+  defaults = {
+    modelscan = true;     # Scan for malicious serialized objects
+    pickleScan = true;    # Scan pickle files for code execution
+    checksums = true;     # Verify file integrity
+  };
+
+  # Additional validators (run after defaults)
+  validators = [
+    {
+      name = "my-validator";
+      description = "Optional description";
+      command = "script to run with $src available";
+      onFailure = "abort";  # abort | warn | skip
+      timeout = 300;        # seconds
+    }
+  ];
+
+  # Skip built-in validators
+  skipDefaults = false;
+
+  # Global failure handling
+  onFailure = "abort";  # abort | warn | skip
+
+  # Global timeout for all validators
+  timeout = 300;
+};
+```
+
+---
+
+## 16. Source Reuse Patterns
+
+### 16.1 Source Factory Pattern
+
+Define reusable source templates for your infrastructure:
+
+```nix
+# In your flake.nix or a shared module
+let
+  # Factory for your company's MLFlow server
+  mkMlflowSource = { modelName, version ? null, stage ? null }: {
+    mlflow = {
+      trackingUri = "https://mlflow.mycompany.com";
+      inherit modelName;
+      modelVersion = version;
+      modelStage = stage;
+    };
+  };
+
+  # Factory for your S3 model bucket
+  mkS3Source = { prefix, files ? null }: {
+    s3 = {
+      bucket = "mycompany-ai-models";
+      region = "us-west-2";
+      inherit prefix files;
+    };
+  };
+
+  # Factory for your Git-Xet repository
+  mkXetSource = { repo, rev, files ? null }: {
+    git-xet = {
+      url = "https://github.com/mycompany/${repo}";
+      inherit rev files;
+      xet.endpoint = "https://xethub.mycompany.com";
+    };
+  };
+
+  # Factory for HuggingFace org
+  mkHfSource = { model, revision ? "main", files ? null }: {
+    huggingface = {
+      repo = "mycompany/${model}";
+      inherit revision files;
+    };
+  };
+
+  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+in {
+  # Now use factories - minimal config per model
+  packages.${system} = {
+    # MLFlow models
+    sft-v1 = fetchModel {
+      name = "sft-v1";
+      source = mkMlflowSource { modelName = "mistral-sft"; version = "1"; };
+      hash = "sha256-aaa...";
+    };
+
+    sft-v2 = fetchModel {
+      name = "sft-v2";
+      source = mkMlflowSource { modelName = "mistral-sft"; version = "2"; };
+      hash = "sha256-bbb...";
+    };
+
+    sft-prod = fetchModel {
+      name = "sft-prod";
+      source = mkMlflowSource { modelName = "mistral-sft"; stage = "Production"; };
+      hash = "sha256-ccc...";
+    };
+
+    # S3 models
+    embeddings = fetchModel {
+      name = "embeddings";
+      source = mkS3Source { prefix = "embeddings/v3"; };
+      hash = "sha256-ddd...";
+    };
+
+    # Git-Xet models
+    llm-experimental = fetchModel {
+      name = "llm-experimental";
+      source = mkXetSource { repo = "llm-models"; rev = "abc123"; };
+      hash = "sha256-eee...";
+    };
+  };
+}
+```
+
+### 16.2 Library-Provided Source Factories
+
+```nix
+# lib/sources/factories.nix - We provide common factories
+
+{
+  # HuggingFace organization factories
+  huggingface = {
+    # Pre-configured for major orgs
+    metaLlama = model: {
+      huggingface.repo = "meta-llama/${model}";
+    };
+
+    mistralai = model: {
+      huggingface.repo = "mistralai/${model}";
+    };
+
+    microsoft = model: {
+      huggingface.repo = "microsoft/${model}";
+    };
+
+    google = model: {
+      huggingface.repo = "google/${model}";
+    };
+
+    # Generic org factory
+    org = orgName: model: {
+      huggingface.repo = "${orgName}/${model}";
+    };
+  };
+
+  # Ollama model factory
+  ollama = {
+    model = name: {
+      ollama.model = name;
+    };
+  };
+
+  # User-definable factories
+  mkMlflow = { trackingUri }: { modelName, version ? null, stage ? null }: {
+    mlflow = {
+      inherit trackingUri modelName;
+      modelVersion = version;
+      modelStage = stage;
+    };
+  };
+
+  mkS3 = { bucket, region }: { prefix, files ? null }: {
+    s3 = {
+      inherit bucket region prefix files;
+    };
+  };
+
+  mkGitLfs = { baseUrl }: { repo, rev, files ? null }: {
+    git-lfs = {
+      url = "${baseUrl}/${repo}";
+      inherit rev;
+      lfsFiles = files;
+    };
+  };
+
+  mkGitXet = { endpoint }: { url, rev, files ? null }: {
+    git-xet = {
+      inherit url rev files;
+      xet = { inherit endpoint; };
+    };
+  };
+
+  mkHttp = { baseUrl }: { path, filename ? null }: {
+    url = {
+      urls = [{
+        url = "${baseUrl}/${path}";
+        inherit filename;
+      }];
+    };
+  };
+}
+```
+
+### 16.3 User Experience: Source Factories
+
+```nix
+let
+  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  sources = nix-ai-models.lib.sources;
+
+  # Create company-specific factories
+  myMlflow = sources.mkMlflow {
+    trackingUri = "https://mlflow.mycompany.com";
+  };
+
+  myS3 = sources.mkS3 {
+    bucket = "mycompany-models";
+    region = "us-west-2";
+  };
+
+  myXet = sources.mkGitXet {
+    endpoint = "https://xethub.mycompany.com";
+  };
+in {
+  packages.${system} = {
+    # Use built-in HuggingFace factories
+    llama = fetchModel {
+      name = "llama-2-7b";
+      source = sources.huggingface.metaLlama "Llama-2-7b-hf";
+      hash = "sha256-aaa...";
+    };
+
+    mistral = fetchModel {
+      name = "mistral-7b";
+      source = sources.huggingface.mistralai "Mistral-7B-v0.1";
+      hash = "sha256-bbb...";
+    };
+
+    phi = fetchModel {
+      name = "phi-2";
+      source = sources.huggingface.microsoft "phi-2";
+      hash = "sha256-ccc...";
+    };
+
+    # Use custom MLFlow factory
+    sft-prod = fetchModel {
+      name = "sft-prod";
+      source = myMlflow { modelName = "mistral-sft"; stage = "Production"; };
+      hash = "sha256-ddd...";
+    };
+
+    sft-staging = fetchModel {
+      name = "sft-staging";
+      source = myMlflow { modelName = "mistral-sft"; stage = "Staging"; };
+      hash = "sha256-eee...";
+    };
+
+    # Use custom S3 factory
+    embeddings-v2 = fetchModel {
+      name = "embeddings-v2";
+      source = myS3 { prefix = "embeddings/v2"; };
+      hash = "sha256-fff...";
+    };
+
+    embeddings-v3 = fetchModel {
+      name = "embeddings-v3";
+      source = myS3 { prefix = "embeddings/v3"; };
+      hash = "sha256-ggg...";
+    };
+
+    # Use Ollama factory
+    llama-quantized = fetchModel {
+      name = "llama-quantized";
+      source = sources.ollama.model "llama2:7b-q4_0";
+      hash = "sha256-hhh...";
+    };
+  };
+}
+```
+
+### 16.4 Full Model Definition Reuse
+
+For complete model configurations, not just sources:
+
+```nix
+let
+  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  presets = nix-ai-models.lib.validation.presets;
+  sources = nix-ai-models.lib.sources;
+
+  # Base configuration shared across models
+  baseConfig = {
+    validation = presets.standard;
+    integration.huggingface.enable = true;
+    network = {
+      timeout.connect = 30;
+      timeout.read = 600;
+      retry.maxAttempts = 3;
+    };
+  };
+
+  # Production config - stricter validation
+  prodConfig = baseConfig // {
+    validation = presets.strict;
+  };
+
+  # Development config - faster builds
+  devConfig = baseConfig // {
+    validation = presets.minimal;
+  };
+
+  # Helper to apply defaults
+  withDefaults = config: model: config // model;
+  withProdDefaults = withDefaults prodConfig;
+  withDevDefaults = withDefaults devConfig;
+
+in {
+  packages.${system} = {
+    # Production models with strict validation
+    mistral-prod = fetchModel (withProdDefaults {
+      name = "mistral-prod";
+      source = sources.huggingface.mistralai "Mistral-7B-v0.1";
+      hash = "sha256-aaa...";
+    });
+
+    llama-prod = fetchModel (withProdDefaults {
+      name = "llama-prod";
+      source = sources.huggingface.metaLlama "Llama-2-7b-hf";
+      hash = "sha256-bbb...";
+    });
+
+    # Development models with minimal validation
+    mistral-dev = fetchModel (withDevDefaults {
+      name = "mistral-dev";
+      source = sources.huggingface.mistralai "Mistral-7B-v0.1";
+      hash = "sha256-aaa...";  # Same model, different validation
+    });
+  };
+}
+```
+
+### 16.5 Multi-Source Model Variants
+
+Same model from different sources:
+
+```nix
+let
+  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  sources = nix-ai-models.lib.sources;
+
+  # Define model variants
+  mistral7b = {
+    # Original from HuggingFace
+    hf = fetchModel {
+      name = "mistral-7b-hf";
+      source = sources.huggingface.mistralai "Mistral-7B-v0.1";
+      hash = "sha256-aaa...";
+    };
+
+    # Quantized from Ollama
+    ollama = fetchModel {
+      name = "mistral-7b-ollama";
+      source = sources.ollama.model "mistral:7b";
+      hash = "sha256-bbb...";
+    };
+
+    # Mirror from company Git-Xet
+    xet = fetchModel {
+      name = "mistral-7b-xet";
+      source.git-xet = {
+        url = "https://github.com/mycompany/model-mirrors";
+        rev = "abc123";
+        files = [ "mistral-7b/*" ];
+        xet.endpoint = "https://xethub.mycompany.com";
+      };
+      hash = "sha256-ccc...";
+    };
+
+    # From company S3 (for air-gapped deployments)
+    s3 = fetchModel {
+      name = "mistral-7b-s3";
+      source.s3 = {
+        bucket = "mycompany-models";
+        prefix = "mistral/7b-v0.1";
+        region = "us-west-2";
+      };
+      hash = "sha256-ddd...";
+    };
+  };
+in {
+  packages.${system} = {
+    # Expose all variants
+    inherit (mistral7b) hf ollama xet s3;
+
+    # Or use default
+    mistral = mistral7b.hf;
+  };
+}
+```
+
+---
+
+## 17. Flake Structure & Exports
+
+### 17.1 Complete Flake Structure
+
+```nix
+# flake.nix
+{
+  description = "Nix AI Model Manager - Reproducible AI/ML model management";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, flake-utils, ... }:
+  let
+    # Systems we support
+    supportedSystems = [
+      "x86_64-linux"
+      "aarch64-linux"
+      "x86_64-darwin"
+      "aarch64-darwin"
+    ];
+
+    # Import library (system-agnostic)
+    lib = import ./lib { inherit (nixpkgs) lib; };
+
+  in {
+    #
+    # SYSTEM-AGNOSTIC EXPORTS
+    #
+
+    # Core library - user passes pkgs
+    lib = {
+      # Main function
+      fetchModel = pkgs: config: import ./lib/fetchModel.nix {
+        inherit pkgs config;
+        inherit (nixpkgs) lib;
+      };
+
+      # Source factories
+      sources = import ./lib/sources/factories.nix { inherit (nixpkgs) lib; };
+
+      # Validation presets and validators
+      validation = {
+        presets = import ./lib/validation/presets.nix { inherit (nixpkgs) lib; };
+        validators = import ./lib/validation/validators.nix { inherit (nixpkgs) lib; };
+        mkValidator = import ./lib/validation/mk-validator.nix { inherit (nixpkgs) lib; };
+      };
+
+      # Integration helpers
+      integration = import ./lib/integration.nix { inherit (nixpkgs) lib; };
+
+      # Utilities
+      prefetchModel = pkgs: spec: import ./lib/utils/prefetch.nix {
+        inherit pkgs spec;
+        inherit (nixpkgs) lib;
+      };
+
+      # Instantiate model definitions with pkgs
+      instantiate = pkgs: defs:
+        nixpkgs.lib.mapAttrsRecursive
+          (path: def: self.lib.fetchModel pkgs def)
+          defs;
+
+      # Create shell hook for HF cache setup
+      mkShellHook = pkgs: { models }: import ./lib/integration/shell-hook.nix {
+        inherit pkgs models;
+        inherit (nixpkgs) lib;
+      };
+    };
+
+    # Model definitions (system-agnostic configs, no derivations)
+    modelDefs = import ./models/definitions.nix { inherit (nixpkgs) lib; };
+
+    # NixOS module
+    nixosModules.default = import ./modules/nixos.nix;
+    nixosModules.ai-models = self.nixosModules.default;
+
+    # Home Manager module
+    homeManagerModules.default = import ./modules/home-manager.nix;
+    homeManagerModules.ai-models = self.homeManagerModules.default;
+
+    # Overlay for pkgs integration
+    overlays.default = final: prev: {
+      fetchAiModel = self.lib.fetchModel final;
+      aiModelSources = self.lib.sources;
+      aiModelValidation = self.lib.validation;
+    };
+
+  } // flake-utils.lib.eachSystem supportedSystems (system:
+  let
+    pkgs = nixpkgs.legacyPackages.${system};
+
+    # Instantiate model definitions for this system
+    instantiatedModels = self.lib.instantiate pkgs self.modelDefs;
+
+  in {
+    #
+    # PER-SYSTEM EXPORTS
+    #
+
+    # Pre-built models from registry (validated)
+    models = instantiatedModels;
+
+    # Raw models (no validation, for CI/testing)
+    rawModels = self.lib.instantiate pkgs (
+      nixpkgs.lib.mapAttrsRecursive
+        (path: def: def // { validation.enable = false; })
+        self.modelDefs
+    );
+
+    # CLI tool
+    packages = {
+      default = self.packages.${system}.nix-ai-model;
+      nix-ai-model = pkgs.callPackage ./cli { };
+    };
+
+    # Development shell
+    devShells.default = pkgs.mkShell {
+      packages = [
+        self.packages.${system}.nix-ai-model
+        pkgs.jq
+        pkgs.curl
+      ];
+    };
+
+    # Checks (tests)
+    checks = import ./tests {
+      inherit pkgs;
+      lib = self.lib;
+    };
+  });
+}
+```
+
+### 17.2 Library Exports Summary
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `lib.fetchModel` | `pkgs -> config -> derivation` | Core function, user passes pkgs |
+| `lib.sources` | `attrset` | Source factories (mkMlflow, mkS3, etc.) |
+| `lib.validation.presets` | `attrset` | Validation presets (strict, standard, etc.) |
+| `lib.validation.validators` | `attrset` | Built-in validators |
+| `lib.validation.mkValidator` | `config -> validator` | Create custom validators |
+| `lib.instantiate` | `pkgs -> defs -> models` | Bulk instantiate definitions |
+| `lib.mkShellHook` | `pkgs -> config -> string` | Generate shell hook for HF cache |
+| `modelDefs` | `attrset` | System-agnostic model definitions |
+| `models.${system}` | `attrset` | Pre-built validated models |
+| `rawModels.${system}` | `attrset` | Pre-built models without validation |
+| `nixosModules.default` | `module` | NixOS integration |
+| `homeManagerModules.default` | `module` | Home Manager integration |
+| `overlays.default` | `overlay` | Nixpkgs overlay |
+
+### 17.3 End-User Flake Example
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nix-ai-models.url = "github:your-org/nix-ai-models";
+  };
+
+  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  let
+    system = "x86_64-linux";
+    pkgs = nixpkgs.legacyPackages.${system};
+
+    # Access library
+    fetchModel = nix-ai-models.lib.fetchModel pkgs;
+    sources = nix-ai-models.lib.sources;
+    presets = nix-ai-models.lib.validation.presets;
+    validators = nix-ai-models.lib.validation.validators;
+
+    # Access pre-built registry
+    models = nix-ai-models.models.${system};
+
+    # Create custom source factories
+    myMlflow = sources.mkMlflow {
+      trackingUri = "https://mlflow.mycompany.com";
+    };
+
+  in {
+    packages.${system} = {
+      # From registry
+      llama = models.meta-llama.llama-2-7b;
+      mistral = models.mistralai.mistral-7b;
+
+      # Custom fetch with factory
+      sft-prod = fetchModel {
+        name = "sft-prod";
+        source = myMlflow { modelName = "mistral-sft"; stage = "Production"; };
+        hash = "sha256-abc...";
+        validation = presets.strict;
+      };
+
+      # Custom fetch with inline source
+      my-model = fetchModel {
+        name = "my-model";
+        source.huggingface = {
+          repo = "my-org/my-model";
+          revision = "v1.0";
+          files = [ "*.safetensors" "config.json" ];
+        };
+        hash = "sha256-def...";
+        validation = presets.standard // {
+          validators = [
+            (validators.maxSize "20G")
+            (validators.requiredFiles [ "config.json" ])
+          ];
+        };
+      };
+    };
+
+    devShells.${system}.default = pkgs.mkShell {
+      packages = [
+        self.packages.${system}.llama
+        self.packages.${system}.mistral
+      ];
+
+      shellHook = nix-ai-models.lib.mkShellHook pkgs {
+        models = [
+          { drv = self.packages.${system}.llama; org = "meta-llama"; model = "Llama-2-7b-hf"; }
+          { drv = self.packages.${system}.mistral; org = "mistralai"; model = "Mistral-7B-v0.1"; }
+        ];
+      };
+    };
+  };
+}
+```
+
+---
+
 ## Next Steps
 
-1. **Implement Core Library** (`lib/fetchModel.nix`, `lib/sources/huggingface.nix`)
+1. **Implement Core Library** (`lib/fetchModel.nix`, `lib/sources/*.nix`)
 2. **Write HuggingFace Fetcher** (`fetchers/huggingface.sh`)
-3. **Create Test Suite** (unit tests for Nix functions)
+3. **Create Validation Framework** (`lib/validation/*.nix`)
 4. **Build CLI Tool** (`cli/nix-ai-model.sh`)
-5. **Add NixOS Module** (`modules/nixos.nix`)
-6. **Write Documentation** (`docs/USAGE.md`)
+5. **Create Test Suite** (unit tests for Nix functions)
+6. **Add NixOS Module** (`modules/nixos.nix`)
+7. **Write Documentation** (`docs/USAGE.md`)
