@@ -15,6 +15,7 @@ let
     "git-xet"
     "url"
     "ollama"
+    "mock"  # For testing
   ];
 
   # Validation helpers
@@ -107,6 +108,12 @@ let
     };
 
   # Source validator dispatch
+  # Validate mock source config (for testing)
+  validateMock = _cfg: {
+    valid = true;
+    errors = [];
+  };
+
   sourceValidators = {
     huggingface = validateHuggingface;
     mlflow = validateMlflow;
@@ -115,6 +122,7 @@ let
     "git-xet" = validateGitXet;
     url = validateUrl;
     ollama = validateOllama;
+    mock = validateMock;
   };
 
 in {

@@ -122,4 +122,36 @@
       } // lib.optionalAttrs (filename != null) { inherit filename; }];
     };
   };
+
+  #
+  # MOCK FACTORY (for testing)
+  #
+
+  mock = {
+    # Create a mock model source for testing
+    # Usage: mock.model { org = "test"; model = "test-model"; }
+    model = { org ? "test-org", model ? "test-model", files ? [ "config.json" ], revision ? "main" }: {
+      mock = {
+        inherit org model files revision;
+      };
+    };
+
+    # Quick empty model
+    empty = {
+      mock = {
+        org = "test";
+        model = "empty";
+        files = [];
+      };
+    };
+
+    # Quick minimal model with just config
+    minimal = {
+      mock = {
+        org = "test";
+        model = "minimal";
+        files = [ "config.json" ];
+      };
+    };
+  };
 }
