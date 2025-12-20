@@ -230,6 +230,41 @@ error: hash mismatch in fixed-output derivation:
 }
 ```
 
+### 3.7 Git-Xet Repositories
+```nix
+{
+  source = "git-xet";
+  url = "https://github.com/org/model-repo.git";
+  rev = "abc123...";  # commit SHA
+  # Optional: specific files/patterns to materialize
+  files = [ "model.safetensors" "weights/*.bin" ];
+
+  # Xet-specific options
+  xet = {
+    # Endpoint for Xet storage (default: xethub.com)
+    endpoint = "https://xethub.com";
+
+    # Authentication (see Section 4)
+    # Uses XET_TOKEN env var or ~/.xet/credentials
+  };
+}
+```
+
+**Git-Xet vs Git-LFS:**
+
+| Feature | Git-LFS | Git-Xet |
+|---------|---------|---------|
+| Storage | Separate LFS server | Content-addressed (CAS) |
+| Deduplication | Per-repo | Global across repos |
+| Streaming | No | Yes (lazy materialization) |
+| Partial clone | Limited | Full support |
+| Chunk-level dedup | No | Yes |
+
+**Use Cases:**
+- Large model repositories with shared components
+- Incremental model updates (only changed chunks downloaded)
+- Streaming access to model files without full download
+
 ---
 
 ## 4. Authentication Specification
@@ -473,6 +508,7 @@ Large models (100GB+) may take hours to download. Tokens can expire mid-download
 | HuggingFace | Bearer token | `HF_TOKEN` env or `~/.cache/huggingface/token` | Gated models need license acceptance |
 | MLFlow | Various | Depends on backend | Often uses HTTP Basic or OAuth |
 | Git LFS | Git credentials | `~/.git-credentials` or SSH keys | Standard Git auth |
+| Git-Xet | Xet token | `XET_TOKEN` env or `~/.xet/credentials` | Also supports Git credentials for repo access |
 | S3 | AWS credentials | `~/.aws/credentials` or env vars | IAM roles preferred in cloud |
 | GCS | Service account | `GOOGLE_APPLICATION_CREDENTIALS` | Workload identity in GKE |
 | Azure Blob | SAS token or AD | `AZURE_STORAGE_*` env vars | Managed identity preferred |
@@ -1361,6 +1397,7 @@ Per-source rate limiting to respect API limits and avoid bans:
 | HuggingFace (auth) | 60 | 1000 | 8 | With valid HF_TOKEN |
 | GitHub LFS | 30 | 60 | 4 | Unauthenticated |
 | GitHub LFS (auth) | 100 | 5000 | 8 | With GITHUB_TOKEN |
+| Git-Xet | 60 | 1000 | 8 | Chunk-level dedup reduces requests |
 | S3/GCS/Azure | 100 | ∞ | 10 | Cloud limits are very high |
 | Ollama | 60 | ∞ | 4 | Self-hosted friendly |
 | HTTP (generic) | 30 | 500 | 2 | Conservative default |
@@ -1769,6 +1806,9 @@ Required packages for the fetch/download phase:
   # For HuggingFace source (enhanced features)
   huggingface-cli = pkgs.python3Packages.huggingface-hub;  # Better HF integration
 
+  # For Git-based sources
+  git-xet = pkgs.git-xet;        # Git-Xet source (content-addressed storage)
+
   # For cloud storage sources
   awscli2 = pkgs.awscli2;        # S3 source
   google-cloud-sdk = pkgs.google-cloud-sdk;  # GCS source
@@ -1809,15 +1849,16 @@ Required packages for the fetch/download phase:
 
 ### 20.4 Dependency Matrix by Source
 
-| Source | curl | git | git-lfs | awscli | huggingface-cli |
-|--------|------|-----|---------|--------|-----------------|
-| HuggingFace | ✓ | - | - | - | Optional |
-| MLFlow | ✓ | - | - | - | - |
-| Git LFS | - | ✓ | ✓ | - | - |
-| HTTP/HTTPS | ✓ | - | - | - | - |
-| S3 | - | - | - | ✓ | - |
-| GCS | ✓ | - | - | - | - |
-| Ollama | ✓ | - | - | - | - |
+| Source | curl | git | git-lfs | git-xet | awscli | huggingface-cli |
+|--------|------|-----|---------|---------|--------|-----------------|
+| HuggingFace | ✓ | - | - | - | - | Optional |
+| MLFlow | ✓ | - | - | - | - | - |
+| Git LFS | - | ✓ | ✓ | - | - | - |
+| Git-Xet | - | ✓ | - | ✓ | - | - |
+| HTTP/HTTPS | ✓ | - | - | - | - | - |
+| S3 | - | - | - | - | ✓ | - |
+| GCS | ✓ | - | - | - | - | - |
+| Ollama | ✓ | - | - | - | - | - |
 
 ---
 
@@ -2427,44 +2468,7 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
 
 ---
 
-## 24. Implementation Phases
-
-Based on gap analysis, recommended implementation order:
-
-### Phase 1: MVP (HuggingFace only)
-- [ ] Shell-based FOD fetcher for HuggingFace
-- [ ] Single output hash (standard FOD)
-- [ ] Basic validation framework (modelscan)
-- [ ] HuggingFace cache symlink integration
-- [ ] CLI: `prefetch`, `list`
-- [ ] 5 curated models (Llama-2-7b, Mistral-7b, Phi-2, etc.)
-
-### Phase 2: Polish
-- [ ] Better error messages with context
-- [ ] File filtering support
-- [ ] Parallel downloads within FOD
-- [ ] GC root management
-- [ ] NixOS module
-- [ ] Home Manager module
-- [ ] 20+ curated models
-
-### Phase 3: Scale
-- [ ] Binary cache chunking for large models
-- [ ] Community model registry
-- [ ] Incremental updates (manifest-based)
-- [ ] Compiled fetcher for performance
-- [ ] Additional sources (S3, Git LFS)
-
-### Phase 4: Enterprise
-- [ ] MLFlow integration
-- [ ] Private registry support
-- [ ] Audit logging
-- [ ] License compliance tracking
-- [ ] Air-gapped deployment patterns
-
----
-
-## 25. Success Criteria
+## 24. Success Criteria
 
 - [ ] Can fetch models from HuggingFace Hub with hash verification
 - [ ] Can run post-download security scans
