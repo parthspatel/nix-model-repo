@@ -2100,7 +2100,371 @@ jobs:
 
 ---
 
-## 23. Success Criteria
+## 23. Gaps Analysis & Design Decisions
+
+### Gap 1: Fetcher Implementation Strategy
+
+**Problem**: How do we implement the actual download mechanism within a FOD?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Shell script in FOD** | Bash script using curl/wget | Simple, portable, full control | Complex error handling, no parallelism |
+| **B. Python fetcher** | Python script using `huggingface_hub` | Native HF support, robust | Python dependency in FOD, slower startup |
+| **C. Rust/Go binary** | Compiled fetcher tool | Fast, parallel, single binary | Build complexity, maintenance burden |
+| **D. Nix builtins** | Chain `builtins.fetchurl` calls | Pure Nix, simple | No parallelism, verbose for many files |
+
+**Recommendation**: **Option A (Shell script)** for v1, with path to **Option C** for v2.
+
+*Rationale*: Shell scripts are immediately understandable, don't require additional build steps, and curl is universally available. For v2, a compiled fetcher enables parallelism and better progress reporting.
+
+---
+
+### Gap 2: HuggingFace File Discovery
+
+**Problem**: How do we know which files to download from a HuggingFace repo?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Hardcoded file list** | User specifies exact files | Predictable, minimal API calls | User burden, breaks on repo changes |
+| **B. API discovery** | Query HF API for file list | Always up-to-date, user-friendly | API dependency, rate limits, impure |
+| **C. Manifest file** | Repo contains `.nix-model-manifest` | Explicit, maintainable | Requires upstream adoption |
+| **D. Git clone + filter** | Clone repo, extract LFS files | Exact version control | Slow, downloads extra data |
+
+**Recommendation**: **Option B (API discovery)** with **Option A** as fallback.
+
+*Rationale*: Most users want "just download the model" UX. API discovery happens during hash calculation (prefetch), then file list is frozen in the Nix expression. Explicit file lists override auto-discovery.
+
+```nix
+# Auto-discovery (default)
+source.huggingface.repo = "meta-llama/Llama-2-7b-hf";
+
+# Explicit override
+source.huggingface = {
+  repo = "meta-llama/Llama-2-7b-hf";
+  files = [ "*.safetensors" "config.json" "tokenizer.json" ];  # Override
+};
+```
+
+---
+
+### Gap 3: Hash Granularity
+
+**Problem**: Should we hash the entire output directory or individual files?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Single output hash** | SHA256 of entire output NAR | Simple, standard FOD pattern | Any file change = full re-download |
+| **B. Per-file hashes** | Hash each file separately | Incremental updates, dedup | Complex, many hashes to manage |
+| **C. Manifest hash** | Hash of (filename, size, hash) list | Detects changes, single hash | Requires manifest generation |
+| **D. Git tree hash** | Use git tree SHA (like fetchFromGitHub) | Matches HF versioning | Only works for git-based sources |
+
+**Recommendation**: **Option A** for simplicity, with **Option C** as enhancement.
+
+*Rationale*: Standard FOD hashing is well-understood and works with all Nix tooling. Manifest-based hashing can be added later for incremental update support.
+
+---
+
+### Gap 4: Model Version Stability
+
+**Problem**: HuggingFace repos can change files without changing commit SHA (rare but possible).
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Trust commit SHA** | Pin to commit, trust it's immutable | Simple, matches git model | Rare mutability issues |
+| **B. Content hash primary** | Ignore commit, use content hash | True reproducibility | Different commit = rebuild even if same |
+| **C. Commit + verification** | Pin commit, verify content hash | Best of both worlds | Two hashes to specify |
+| **D. Snapshot service** | Our own immutable snapshot of models | Full control | Infrastructure cost, legal issues |
+
+**Recommendation**: **Option C (Commit + verification)**.
+
+*Rationale*: Use commit SHA for human readability and cache keys, but verify content hash for true reproducibility. If content changes unexpectedly, fail loudly.
+
+```nix
+{
+  source.huggingface = {
+    repo = "meta-llama/Llama-2-7b-hf";
+    revision = "main";  # Human-readable, resolved to commit SHA
+  };
+  # Content hash is authoritative
+  hash = "sha256-abc123...";
+}
+```
+
+---
+
+### Gap 5: Partial Model Downloads
+
+**Problem**: Users may want only specific files (tokenizer for inspection, single shard for testing).
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. All-or-nothing** | Download complete model only | Simple, always consistent | Wastes bandwidth for partial needs |
+| **B. File filtering** | Glob patterns to include/exclude | Flexible, bandwidth efficient | Partial models may not load |
+| **C. Separate derivations** | Split model into components | Maximum flexibility | Complex dependency graph |
+| **D. Lazy file fetch** | Download files on first access | Minimal initial download | Impure, breaks offline use |
+
+**Recommendation**: **Option B (File filtering)** with validation.
+
+*Rationale*: Allow users to specify file patterns, but validate that required files (config.json, tokenizer) are present if needed for the intended use case.
+
+```nix
+{
+  source.huggingface = {
+    repo = "meta-llama/Llama-2-7b-hf";
+    # Only download tokenizer for inspection
+    files = [ "tokenizer*.json" "config.json" ];
+  };
+
+  # Validation ensures usability
+  validation.requireFiles = [ "config.json" ];  # Fail if missing
+}
+```
+
+---
+
+### Gap 6: Garbage Collection & Pinning
+
+**Problem**: Large models can be accidentally garbage collected, requiring expensive re-downloads.
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Standard GC roots** | Use nix-store --add-root | Standard Nix pattern | Manual management |
+| **B. Profile-based** | Install models to profile | Familiar, nix-env style | Mutable state |
+| **C. Flake registry** | Models as flake inputs | Locked in flake.lock | Unusual for data |
+| **D. Dedicated cache dir** | Symlink farm outside store | Persistent, browsable | Non-standard |
+
+**Recommendation**: **Option A** with helper commands.
+
+*Rationale*: Use standard Nix GC roots but provide CLI helpers to manage them easily.
+
+```bash
+# CLI helpers for GC management
+nix-ai-model pin llama-2-7b      # Create GC root
+nix-ai-model unpin llama-2-7b    # Remove GC root
+nix-ai-model list --pinned       # Show pinned models
+```
+
+---
+
+### Gap 7: Model Registry / Discovery
+
+**Problem**: How do users discover available models and their hashes?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. No registry** | Users find hashes themselves | Simple, no maintenance | Poor UX |
+| **B. Curated registry** | We maintain list of popular models | Great UX, tested | Maintenance burden, stale |
+| **C. Community registry** | GitHub repo with PRs for models | Community-driven | Quality control issues |
+| **D. Auto-generated** | Scrape HF, generate hashes | Always fresh | Compute cost, trust issues |
+
+**Recommendation**: **Option B** (curated) + **Option C** (community) hybrid.
+
+*Rationale*: Start with curated list of ~20 popular models (Llama, Mistral, Phi, etc.). Accept community PRs for additions. CI verifies hashes still match.
+
+```nix
+# Pre-defined models with known-good hashes
+models.llama-2-7b = nix-ai-models.models.huggingface.meta-llama.Llama-2-7b-hf;
+models.mistral-7b = nix-ai-models.models.huggingface.mistralai.Mistral-7B-v0-1;
+
+# Or fetch any model with your own hash
+models.custom = fetchModel {
+  source.huggingface.repo = "my-org/my-model";
+  hash = "sha256-...";
+};
+```
+
+---
+
+### Gap 8: Validation Result Caching
+
+**Problem**: Security scans can be slow. Should we re-run on every rebuild?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Always re-validate** | Run validators every build | Maximum security | Slow, wasteful |
+| **B. Cache in derivation** | Validation result in output | Fast rebuilds | Result could be stale |
+| **C. Separate cache** | Store validation results externally | Flexible, shareable | Complex, trust issues |
+| **D. Hash-based skip** | Skip if model hash unchanged | Efficient, correct | Validators might update |
+
+**Recommendation**: **Option D (Hash-based skip)** with override.
+
+*Rationale*: If model content hash is unchanged, validation results are still valid. Provide `--revalidate` flag to force re-scan when validators update.
+
+```nix
+{
+  validation = {
+    # Default: skip if model hash matches cached validation
+    cacheResults = true;
+
+    # Force revalidation (e.g., after modelscan update)
+    forceRevalidate = false;
+
+    # Invalidate cache if these change
+    cacheKey = [ modelscan.version picklescan.version ];
+  };
+}
+```
+
+---
+
+### Gap 9: Cross-Platform Model Variants
+
+**Problem**: Some models have platform-specific variants (quantizations, architectures).
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Ignore platform** | Same model on all platforms | Simple | May not work everywhere |
+| **B. Platform attribute** | `model.x86_64-linux` | Standard Nix pattern | Verbose |
+| **C. Auto-detect** | Choose variant based on platform | Magical UX | Complex, surprising |
+| **D. Explicit variants** | `model-gguf-q4`, `model-fp16` | Clear, explicit | Many derivations |
+
+**Recommendation**: **Option D (Explicit variants)** with convenience wrappers.
+
+*Rationale*: Models are data, not code - platform doesn't usually matter. When it does (GGUF quantizations, architecture-specific), make it explicit.
+
+```nix
+{
+  # Base model (works everywhere)
+  llama-2-7b = fetchModel { ... };
+
+  # Explicit quantized variants
+  llama-2-7b-q4 = fetchModel {
+    source.huggingface.repo = "TheBloke/Llama-2-7B-GGUF";
+    files = [ "llama-2-7b.Q4_K_M.gguf" ];
+    ...
+  };
+
+  # Convenience: pick best variant for platform
+  llama-2-7b-optimized = lib.getBestVariant {
+    default = llama-2-7b;
+    gguf = llama-2-7b-q4;  # For llama.cpp users
+  };
+}
+```
+
+---
+
+### Gap 10: Error Messages & Debugging
+
+**Problem**: FOD failures are notoriously hard to debug.
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Standard Nix errors** | Let Nix handle errors | Consistent | Cryptic for users |
+| **B. Wrapper with context** | Catch errors, add context | Helpful | Complexity |
+| **C. Structured logging** | JSON logs for parsing | Machine-readable | Overwhelming |
+| **D. Interactive debug mode** | Drop to shell on failure | Most debuggable | Impure, manual |
+
+**Recommendation**: **Option B (Wrapper with context)** + **Option D (Debug mode)** for development.
+
+*Rationale*: Wrap errors with model-specific context (which file failed, why). Provide `--debug` flag for interactive troubleshooting.
+
+```
+error: Failed to fetch model: meta-llama/Llama-2-7b-hf
+
+  ✗ File download failed: model-00001-of-00003.safetensors
+    HTTP 403: Access denied
+
+  This is a gated model. To access it:
+  1. Visit https://huggingface.co/meta-llama/Llama-2-7b-hf
+  2. Accept the license agreement
+  3. Set HF_TOKEN environment variable
+
+  Debug: nix build .#llama-2-7b --impure --debug
+```
+
+---
+
+### Gap 11: Flake Integration Patterns
+
+**Problem**: How should models integrate with flakes? As inputs? Overlays? Lib functions?
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. Lib functions only** | `nix-ai-models.lib.fetchModel` | Minimal, flexible | No pre-built models |
+| **B. Overlay** | `pkgs.ai-models.llama-2-7b` | Familiar, discoverable | Heavyweight |
+| **C. Flake outputs** | `nix-ai-models.models.llama-2-7b` | Direct access | Large flake eval |
+| **D. Separate flake per model** | `llama-2-7b.url = "..."` | Maximum cacheability | Many inputs |
+
+**Recommendation**: **Option A + C hybrid**.
+
+*Rationale*: Provide `lib.fetchModel` for custom models and pre-built `models.*` outputs for popular models. Avoid overlay to keep it lightweight.
+
+```nix
+{
+  inputs.nix-ai-models.url = "github:org/nix-ai-models";
+
+  outputs = { nix-ai-models, ... }: {
+    # Use pre-built model
+    packages.default = let
+      llama = nix-ai-models.models.x86_64-linux.llama-2-7b;
+    in ...;
+
+    # Or fetch custom model
+    packages.custom = let
+      myModel = nix-ai-models.lib.fetchModel { ... };
+    in ...;
+  };
+}
+```
+
+---
+
+### Gap 12: Resume & Checkpoint Behavior
+
+**Problem**: Can we resume interrupted downloads? FOD builds start fresh on retry.
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **A. No resume** | Always start fresh | Simple, pure | Wastes bandwidth |
+| **B. External staging** | Download to cache, copy to FOD | Resumable | Impure, double storage |
+| **C. HTTP Range requests** | Resume partial files with Range header | Bandwidth efficient | Server must support |
+| **D. Chunked derivations** | Each chunk is separate FOD | Per-chunk resume | Complex graph |
+
+**Recommendation**: **Option C (Range requests)** within FOD, **Option B** for development mode.
+
+*Rationale*: Most HTTP servers support Range headers. Attempt resume within FOD; if fails, start fresh. For development/prefetch, use external staging.
+
+---
+
+## 24. Implementation Phases
+
+Based on gap analysis, recommended implementation order:
+
+### Phase 1: MVP (HuggingFace only)
+- [ ] Shell-based FOD fetcher for HuggingFace
+- [ ] Single output hash (standard FOD)
+- [ ] Basic validation framework (modelscan)
+- [ ] HuggingFace cache symlink integration
+- [ ] CLI: `prefetch`, `list`
+- [ ] 5 curated models (Llama-2-7b, Mistral-7b, Phi-2, etc.)
+
+### Phase 2: Polish
+- [ ] Better error messages with context
+- [ ] File filtering support
+- [ ] Parallel downloads within FOD
+- [ ] GC root management
+- [ ] NixOS module
+- [ ] Home Manager module
+- [ ] 20+ curated models
+
+### Phase 3: Scale
+- [ ] Binary cache chunking for large models
+- [ ] Community model registry
+- [ ] Incremental updates (manifest-based)
+- [ ] Compiled fetcher for performance
+- [ ] Additional sources (S3, Git LFS)
+
+### Phase 4: Enterprise
+- [ ] MLFlow integration
+- [ ] Private registry support
+- [ ] Audit logging
+- [ ] License compliance tracking
+- [ ] Air-gapped deployment patterns
+
+---
+
+## 25. Success Criteria
 
 - [ ] Can fetch models from HuggingFace Hub with hash verification
 - [ ] Can run post-download security scans
