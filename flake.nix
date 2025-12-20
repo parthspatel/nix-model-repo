@@ -185,9 +185,6 @@
             treefmtBuild.wrapper
             nodePackages.prettier
 
-            # Testing
-            bats  # Bash testing
-
             # CI tools
             actionlint  # GitHub Actions linter
             act  # Run GitHub Actions locally
@@ -197,11 +194,12 @@
             echo "nix-ai-models development shell v${version}"
             echo ""
             echo "Available commands:"
-            echo "  nix flake check    - Run all checks"
-            echo "  nix fmt            - Format code"
-            echo "  nix build .#docs   - Build documentation"
-            echo "  bats tests/        - Run tests"
-            echo "  actionlint         - Lint GitHub Actions"
+            echo "  nix flake check       - Run all checks"
+            echo "  nix build .#checks.x86_64-linux.unit-tests  - Run unit tests"
+            echo "  nix build .#checks.x86_64-linux.integration - Run integration tests"
+            echo "  nix fmt               - Format code"
+            echo "  nix build .#docs      - Build documentation"
+            echo "  actionlint            - Lint GitHub Actions"
             echo ""
           '';
 
@@ -252,17 +250,24 @@
     checks = forAllSystems (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        lib' = mkLib pkgs;
+        inherit (nixpkgs) lib;
+
+        # Import the test suite
+        testSuite = import ./tests {
+          inherit lib pkgs;
+        };
       in {
         # Formatting check
         formatting = (treefmtEval system).config.build.check self;
 
-        # Type validation tests
-        types = pkgs.runCommand "test-types" {} ''
-          echo "Testing type validation..."
-          # TODO: Add actual tests
-          touch $out
-        '';
+        # Unit tests (pure Nix evaluation tests)
+        unit-tests = testSuite.checks.unit-tests;
+
+        # Integration tests
+        integration = testSuite.checks.integration-tests;
+
+        # All tests
+        all-tests = testSuite.checks.all;
 
         # Shell script linting
         shellcheck = pkgs.runCommand "shellcheck" {
@@ -276,11 +281,11 @@
         # Build documentation
         docs = self.packages.${system}.docs;
 
-        # Nix file evaluation
+        # Nix file evaluation smoke test
         eval = pkgs.runCommand "test-eval" {} ''
           echo "Testing Nix evaluation..."
-          # Ensure flake evaluates without errors
           echo "Flake version: ${version}"
+          echo "Model definitions: ${builtins.toJSON (lib.attrNames self.modelDefs)}"
           touch $out
         '';
       }
