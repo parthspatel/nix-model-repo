@@ -6,6 +6,7 @@ let
   # Import individual source adapters
   adapters = {
     huggingface = import ./huggingface.nix { inherit lib pkgs; };
+    mock = import ./mock.nix { inherit lib pkgs; };
     # Additional adapters will be added here:
     # mlflow = import ./mlflow.nix { inherit lib pkgs; };
     # s3 = import ./s3.nix { inherit lib pkgs; };
