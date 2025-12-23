@@ -401,3 +401,11 @@ fetchModel pkgs {
 Disabling validation removes important security checks. Only do this for
 models you completely trust or when validation is handled by other means.
 ```
+
+## Complete Examples
+
+For full configurations demonstrating validation patterns, see:
+
+- [Validation Presets Flake](examples.md#validation-presets-flake) - All presets and custom validators
+- [Production Inference](examples.md#production-inference-flake) - Strict security for production
+- [Devenv with Validation](examples.md#ml-development-with-devenv) - Validation in devenv environments

@@ -322,3 +322,12 @@ nix build .#my-model
 #   specified: sha256-old...
 #   got:       sha256-new...
 ```
+
+## Complete Examples
+
+For full integration examples, see:
+
+- [Development Environment](examples.md#development-environment-flake) - Dev shell with HuggingFace integration
+- [NixOS Configuration](examples.md#nixos-configuration-with-models) - System-wide model management
+- [Home Manager](examples.md#home-manager-configuration) - User-level configuration
+- [Devenv Configuration](examples.md#devenv-configuration) - Automatic HuggingFace cache setup

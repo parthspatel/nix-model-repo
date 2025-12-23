@@ -284,3 +284,13 @@ in
 ```
 
 See [Validation](validation.md) for preset details.
+
+## Complete Examples
+
+For full, working configurations, see:
+
+- [Basic Model Flake](examples.md#basic-model-flake) - Minimal setup
+- [Multi-Model Flake](examples.md#multi-model-flake) - Multiple models
+- [Production Inference](examples.md#production-inference-flake) - All options with strict validation
+- [Validation Presets](examples.md#validation-presets-flake) - Different validation configurations
+- [Devenv Configuration](examples.md#devenv-configuration) - Using with devenv.sh
