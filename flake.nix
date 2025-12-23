@@ -78,6 +78,10 @@
     homeManagerModules.default = import ./modules/home-manager.nix;
     homeManagerModules.ai-models = self.homeManagerModules.default;
 
+    # Devenv module (for devenv.sh integration)
+    devenvModules.default = import ./modules/devenv.nix;
+    devenvModules.ai-models = self.devenvModules.default;
+
     # Overlay for pkgs integration
     overlays.default = final: _prev: {
       fetchAiModel = self.lib.fetchModel final;

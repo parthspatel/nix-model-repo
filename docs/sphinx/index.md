@@ -68,6 +68,7 @@ examples
 api-reference
 cli
 modules
+devenv
 ```
 
 ```{toctree}
