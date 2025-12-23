@@ -400,3 +400,14 @@ in {
 ```
 
 See [Configuration](configuration.md) for more details on source factories.
+
+## Complete Examples
+
+For working multi-source configurations, see the [Multi-Source Example](examples.md#multi-source-flake) which demonstrates:
+
+- Fetching from HuggingFace Hub
+- Using company S3 buckets
+- Pulling from MLFlow registry
+- Cloning Git LFS repositories
+
+Also see [Devenv Examples](examples.md#devenv-configuration) for using sources in devenv.sh environments.

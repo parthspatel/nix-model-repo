@@ -99,6 +99,7 @@ model = AutoModel.from_pretrained("google-bert/bert-base-uncased")
 - [Sources](sources.md) - Different model sources (HuggingFace, S3, MLFlow, etc.)
 - [Validation](validation.md) - Security scanning and validation
 - [Examples](examples.md) - Complete example configurations
+- [Devenv Integration](devenv.md) - Use with devenv.sh development environments
 
 ## Common Patterns
 
@@ -173,6 +174,31 @@ fetchModel {
 }
 ```
 
+## Using with Devenv
+
+For [devenv.sh](https://devenv.sh) development environments, we provide a dedicated module:
+
+```nix
+# devenv.nix
+{ pkgs, lib, inputs, ... }:
+
+{
+  imports = [
+    inputs.nix-ai-models.devenvModules.default
+  ];
+
+  services.ai-models = {
+    enable = true;
+    models.bert = {
+      source.huggingface.repo = "google-bert/bert-base-uncased";
+      hash = "sha256-...";
+    };
+  };
+}
+```
+
+See the [Devenv Integration Guide](devenv.md) for full documentation and [Devenv Examples](examples.md#devenv-configuration) for complete configurations.
+
 ## Troubleshooting
 
 ### Hash Mismatch
@@ -198,3 +224,12 @@ fetchModel {
   network.timeout.read = 3600;  # 1 hour
 }
 ```
+
+## More Examples
+
+For complete, copy-paste ready examples, see:
+
+- [Basic Model Flake](examples.md#basic-model-flake) - Minimal setup
+- [Development Environment](examples.md#development-environment-flake) - Dev shell with models
+- [Production Inference](examples.md#production-inference-flake) - Production deployment
+- [Devenv Configuration](examples.md#devenv-configuration) - Using with devenv.sh

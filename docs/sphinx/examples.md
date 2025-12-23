@@ -2,6 +2,20 @@
 
 This page provides complete example flake configurations for common use cases.
 
+## Quick Links
+
+| Example | Description | Key Features |
+|---------|-------------|--------------|
+| [Basic Model](#basic-model-flake) | Minimal single model setup | Simple, quick start |
+| [Multi-Model](#multi-model-flake) | Multiple models in one flake | Embeddings, LLM, classifier |
+| [Development Environment](#development-environment-flake) | Dev shell with models | Python, offline mode |
+| [Production Inference](#production-inference-flake) | Production deployment | Strict validation, NixOS module |
+| [Multi-Source](#multi-source-flake) | Different model sources | S3, MLFlow, Git LFS |
+| [Validation Presets](#validation-presets-flake) | Security configurations | Presets, custom validators |
+| [NixOS Configuration](#nixos-configuration-with-models) | Full NixOS integration | systemd service |
+| [Home Manager](#home-manager-configuration) | User-level config | Shell integration |
+| [Devenv](#devenv-configuration) | devenv.sh integration | ML development |
+
 ## Basic Model Flake
 
 A minimal flake that fetches a single model:
@@ -554,5 +568,279 @@ A Home Manager configuration with AI models:
       ];
     };
   };
+}
+```
+
+## Devenv Configuration
+
+A [devenv](https://devenv.sh) configuration with AI models. See the full [Devenv Integration Guide](devenv.md) for more details.
+
+### Basic Devenv Setup
+
+**devenv.yaml:**
+```yaml
+inputs:
+  nix-ai-models:
+    url: github:your-org/nix-ai-models
+```
+
+**devenv.nix:**
+```nix
+{ pkgs, lib, inputs, ... }:
+
+{
+  imports = [
+    inputs.nix-ai-models.devenvModules.default
+  ];
+
+  services.ai-models = {
+    enable = true;
+
+    models = {
+      bert = {
+        source.huggingface.repo = "google-bert/bert-base-uncased";
+        hash = "sha256-...";
+      };
+
+      gpt2 = {
+        source.huggingface.repo = "openai-community/gpt2";
+        hash = "sha256-...";
+      };
+    };
+  };
+
+  # Python environment
+  languages.python = {
+    enable = true;
+    package = pkgs.python311;
+  };
+
+  packages = [
+    pkgs.python311Packages.transformers
+    pkgs.python311Packages.torch
+  ];
+}
+```
+
+### ML Development with Devenv
+
+A complete ML development environment:
+
+```nix
+# devenv.nix
+{ pkgs, lib, inputs, ... }:
+
+{
+  imports = [
+    inputs.nix-ai-models.devenvModules.default
+  ];
+
+  # AI Models with different configurations
+  services.ai-models = {
+    enable = true;
+
+    models = {
+      # Small model for quick iteration
+      bert-tiny = {
+        source.huggingface.repo = "prajjwal1/bert-tiny";
+        hash = "sha256-...";
+        validation.enable = false;  # Skip for speed
+      };
+
+      # Production embedding model
+      embeddings = {
+        source.huggingface.repo = "sentence-transformers/all-MiniLM-L6-v2";
+        hash = "sha256-...";
+      };
+
+      # Large model (gated, requires auth)
+      llama = {
+        source.huggingface.repo = "meta-llama/Llama-2-7b-hf";
+        hash = "sha256-...";
+        auth.tokenEnvVar = "HF_TOKEN";
+      };
+    };
+
+    # Custom cache location
+    cacheDir = ".cache/models";
+
+    # Offline mode (recommended)
+    offlineMode = true;
+  };
+
+  # Python with ML stack
+  languages.python = {
+    enable = true;
+    package = pkgs.python311;
+    venv = {
+      enable = true;
+      requirements = ''
+        transformers
+        torch
+        datasets
+        accelerate
+        jupyter
+        matplotlib
+        pandas
+      '';
+    };
+  };
+
+  # Additional tools
+  packages = with pkgs; [
+    jq
+    curl
+  ];
+
+  # Custom scripts
+  scripts = {
+    train.exec = ''
+      python scripts/train.py "$@"
+    '';
+
+    evaluate.exec = ''
+      python scripts/evaluate.py "$@"
+    '';
+
+    notebook.exec = ''
+      jupyter lab --no-browser
+    '';
+  };
+
+  # Pre-commit hooks
+  pre-commit.hooks = {
+    black.enable = true;
+    ruff.enable = true;
+  };
+
+  # Shell startup
+  enterShell = ''
+    echo "🤖 ML Development Environment"
+    echo ""
+    echo "Available models:"
+    echo "  - bert-tiny (fast iteration)"
+    echo "  - embeddings (sentence-transformers)"
+    echo "  - llama (requires HF_TOKEN)"
+    echo ""
+    echo "Commands:"
+    echo "  train      - Run training script"
+    echo "  evaluate   - Run evaluation"
+    echo "  notebook   - Start Jupyter Lab"
+  '';
+}
+```
+
+### Devenv with Flakes
+
+Using devenv with a flake for more control:
+
+```nix
+# flake.nix
+{
+  description = "ML Project with Devenv";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    devenv.url = "github:cachix/devenv";
+    nix-ai-models.url = "github:your-org/nix-ai-models";
+  };
+
+  nixConfig = {
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = "https://devenv.cachix.org";
+  };
+
+  outputs = { self, nixpkgs, devenv, nix-ai-models, ... }@inputs:
+  let
+    systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+    forEachSystem = nixpkgs.lib.genAttrs systems;
+  in {
+    packages = forEachSystem (system: {
+      devenv-up = self.devShells.${system}.default.config.procfileScript;
+    });
+
+    devShells = forEachSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in {
+        default = devenv.lib.mkShell {
+          inherit inputs pkgs;
+
+          modules = [
+            nix-ai-models.devenvModules.default
+            {
+              services.ai-models = {
+                enable = true;
+                models = {
+                  bert = {
+                    source.huggingface.repo = "google-bert/bert-base-uncased";
+                    hash = "sha256-...";
+                  };
+                };
+              };
+
+              languages.python.enable = true;
+
+              packages = with pkgs; [
+                python311Packages.transformers
+              ];
+            }
+          ];
+        };
+      }
+    );
+  };
+}
+```
+
+### Devenv without Module
+
+If you prefer not to use the module, you can use the library directly:
+
+```nix
+# devenv.nix
+{ pkgs, lib, inputs, ... }:
+
+let
+  fetchModel = inputs.nix-ai-models.lib.fetchModel pkgs;
+
+  # Define models
+  bert = fetchModel {
+    name = "bert-base";
+    source.huggingface.repo = "google-bert/bert-base-uncased";
+    hash = "sha256-...";
+  };
+
+  gpt2 = fetchModel {
+    name = "gpt2";
+    source.huggingface.repo = "openai-community/gpt2";
+    hash = "sha256-...";
+  };
+in {
+  # Make models available as packages
+  packages = [ bert gpt2 ];
+
+  # Set environment variables
+  env = {
+    BERT_MODEL = "${bert}";
+    GPT2_MODEL = "${gpt2}";
+    HF_HUB_OFFLINE = "1";
+    TRANSFORMERS_OFFLINE = "1";
+  };
+
+  # Setup HuggingFace cache
+  enterShell = ''
+    mkdir -p .cache/huggingface/hub
+
+    # Link models to HF cache
+    ln -sfn ${bert} .cache/huggingface/hub/models--google-bert--bert-base-uncased
+    ln -sfn ${gpt2} .cache/huggingface/hub/models--openai-community--gpt2
+
+    export HF_HOME="$PWD/.cache/huggingface"
+
+    echo "Models linked to .cache/huggingface/hub/"
+    echo "  - bert: $BERT_MODEL"
+    echo "  - gpt2: $GPT2_MODEL"
+  '';
 }
 ```
