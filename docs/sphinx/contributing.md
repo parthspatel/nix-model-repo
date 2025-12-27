@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to Nix AI Models!
+Thank you for your interest in contributing to Nix Model Repo!
 
 ## Getting Started
 
@@ -13,8 +13,8 @@ Thank you for your interest in contributing to Nix AI Models!
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/nix-ai-models.git
-cd nix-ai-models
+git clone https://github.com/your-org/nix-model-repo.git
+cd nix-model-repo
 
 # Enter development shell
 nix develop
@@ -23,7 +23,7 @@ nix develop
 ## Project Structure
 
 ```
-nix-ai-models/
+nix-model-repo/
 ├── flake.nix              # Main flake entry point
 ├── lib/
 │   ├── default.nix        # Library exports

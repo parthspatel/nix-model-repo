@@ -9,9 +9,9 @@ import sys
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Nix AI Models'
-copyright = '2024, Nix AI Models Contributors'
-author = 'Nix AI Models Contributors'
+project = 'Nix Model Repo'
+copyright = '2024, Nix Model Repo Contributors'
+author = 'Nix Model Repo Contributors'
 release = '0.1.0'
 version = '0.1'
 
@@ -58,8 +58,8 @@ html_theme_options = {
     "navigation_with_keys": True,
 }
 
-html_title = "Nix AI Models"
-html_short_title = "nix-ai-models"
+html_title = "Nix Model Repo"
+html_short_title = "nix-model-repo"
 
 # -- Options for intersphinx extension ---------------------------------------
 intersphinx_mapping = {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the step-by-step implementation plan for the Nix AI Model Plugin. We follow a bottom-up approach: define interfaces first, implement core utilities, then build higher-level abstractions.
+This document outlines the step-by-step implementation plan for the Nix Model Repo Plugin. We follow a bottom-up approach: define interfaces first, implement core utilities, then build higher-level abstractions.
 
 ---
 
@@ -415,7 +415,7 @@ ls -la result/snapshots/
 
 ```nix
 {
-  description = "Nix AI Model Manager";
+  description = "Nix Model Repo Manager";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

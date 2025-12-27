@@ -1,14 +1,14 @@
-# Nix AI Models
+# Nix Model Repo
 
 **Reproducible AI/ML Model Management for Nix**
 
-Nix AI Models is a Nix library for fetching, validating, and managing AI/ML models
+Nix Model Repo is a Nix library for fetching, validating, and managing AI/ML models
 as reproducible Nix derivations. It supports multiple model sources including
 HuggingFace Hub, MLFlow, S3, and more.
 
 ```nix
 # Fetch a model from HuggingFace
-llama = nix-ai-models.lib.fetchModel pkgs {
+llama = nix-model-repo.lib.fetchModel pkgs {
   name = "llama-2-7b";
   source.huggingface.repo = "meta-llama/Llama-2-7b-hf";
   hash = "sha256-...";
@@ -30,13 +30,13 @@ llama = nix-ai-models.lib.fetchModel pkgs {
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { nixpkgs, nix-ai-models, ... }:
+  outputs = { nixpkgs, nix-model-repo, ... }:
   let
     pkgs = nixpkgs.legacyPackages.x86_64-linux;
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
   in {
     packages.x86_64-linux.my-model = fetchModel {
       name = "mistral-7b";

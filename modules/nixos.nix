@@ -6,10 +6,10 @@
 with lib;
 
 let
-  cfg = config.services.ai-models;
+  cfg = config.services.model-repo;
 
 in {
-  options.services.ai-models = {
+  options.services.model-repo = {
     enable = mkEnableOption "AI model management";
 
     # TODO: Add full options

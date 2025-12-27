@@ -1,5 +1,5 @@
 {
-  description = "Nix AI Model Manager - Reproducible AI/ML model management";
+  description = "Nix Model Repo - Reproducible AI/ML model management";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -72,21 +72,21 @@
 
     # NixOS module
     nixosModules.default = import ./modules/nixos.nix;
-    nixosModules.ai-models = self.nixosModules.default;
+    nixosModules.model-repo = self.nixosModules.default;
 
     # Home Manager module
     homeManagerModules.default = import ./modules/home-manager.nix;
-    homeManagerModules.ai-models = self.homeManagerModules.default;
+    homeManagerModules.model-repo = self.homeManagerModules.default;
 
     # Devenv module (for devenv.sh integration)
     devenvModules.default = import ./modules/devenv.nix;
-    devenvModules.ai-models = self.devenvModules.default;
+    devenvModules.model-repo = self.devenvModules.default;
 
     # Overlay for pkgs integration
     overlays.default = final: _prev: {
-      fetchAiModel = self.lib.fetchModel final;
-      aiModelSources = self.lib.sources;
-      aiModelValidation = self.lib.validation;
+      fetchModel = self.lib.fetchModel final;
+      modelRepoSources = self.lib.sources;
+      modelRepoValidation = self.lib.validation;
     };
 
   } // {
@@ -120,7 +120,7 @@
       in {
         # Documentation
         docs = pkgs.stdenvNoCC.mkDerivation {
-          pname = "nix-ai-models-docs";
+          pname = "nix-model-repo-docs";
           inherit version;
           src = ./docs/sphinx;
 
@@ -141,7 +141,7 @@
         };
 
         # CLI tool will be added here
-        # default = self.packages.${system}.nix-ai-model;
+        # default = self.packages.${system}.nix-model-repo;
       }
     );
 
@@ -158,7 +158,7 @@
       in {
         # Default development shell
         default = pkgs.mkShell {
-          name = "nix-ai-models-dev";
+          name = "nix-model-repo-dev";
 
           packages = with pkgs; [
             # Nix tools
@@ -195,7 +195,7 @@
           ];
 
           shellHook = ''
-            echo "nix-ai-models development shell v${version}"
+            echo "nix-model-repo development shell v${version}"
             echo ""
             echo "Available commands:"
             echo "  nix flake check       - Run all checks"
@@ -208,12 +208,12 @@
           '';
 
           # Environment variables
-          NIX_AI_MODELS_VERSION = version;
+          NIX_MODEL_REPO_VERSION = version;
         };
 
         # CI shell (minimal, for GitHub Actions)
         ci = pkgs.mkShell {
-          name = "nix-ai-models-ci";
+          name = "nix-model-repo-ci";
 
           packages = with pkgs; [
             nix-prefetch
@@ -223,12 +223,12 @@
             treefmtBuild.wrapper
           ];
 
-          NIX_AI_MODELS_VERSION = version;
+          NIX_MODEL_REPO_VERSION = version;
         };
 
         # Documentation shell
         docs = pkgs.mkShell {
-          name = "nix-ai-models-docs";
+          name = "nix-model-repo-docs";
 
           packages = with pkgs; [
             python3Packages.sphinx

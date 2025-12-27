@@ -1,10 +1,10 @@
 # Architecture
 
-This document describes the architecture of Nix AI Models.
+This document describes the architecture of Nix Model Repo.
 
 ## Overview
 
-Nix AI Models is designed around the principle of reproducible, secure model fetching using Nix's Fixed Output Derivation (FOD) system.
+Nix Model Repo is designed around the principle of reproducible, secure model fetching using Nix's Fixed Output Derivation (FOD) system.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -219,7 +219,7 @@ $out/
 │   └── {commit-sha}/
 │       ├── config.json → ../../blobs/{hash}
 │       └── model.safetensors → ../../blobs/{hash}
-└── .nix-ai-model-meta.json  # Metadata
+└── .nix-model-repo-meta.json  # Metadata
 ```
 
 ## Extension Points

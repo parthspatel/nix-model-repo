@@ -1,6 +1,6 @@
 # API Reference
 
-This page documents the complete API for Nix AI Models.
+This page documents the complete API for Nix Model Repo.
 
 ## Core Functions
 
@@ -44,7 +44,7 @@ fetchModel :: Nixpkgs -> AttrSet -> Derivation
 ```nix
 let
   pkgs = import <nixpkgs> {};
-  fetchModel = nix-ai-models.lib.fetchModel;
+  fetchModel = nix-model-repo.lib.fetchModel;
 in
   fetchModel pkgs {
     name = "llama-2-7b";
@@ -105,7 +105,7 @@ let
     };
   };
 in
-  nix-ai-models.lib.instantiate pkgs modelDefs
+  nix-model-repo.lib.instantiate pkgs modelDefs
   # Returns: { llama = <derivation>; bert = <derivation>; }
 ```
 
@@ -127,7 +127,7 @@ mkHuggingFace :: AttrSet -> String -> AttrSet
 
 ```nix
 let
-  hf = nix-ai-models.lib.sources.mkHuggingFace {
+  hf = nix-model-repo.lib.sources.mkHuggingFace {
     defaultAuth.tokenEnvVar = "HF_TOKEN";
   };
 in
@@ -150,7 +150,7 @@ mkS3 :: AttrSet -> String -> AttrSet
 
 ```nix
 let
-  s3 = nix-ai-models.lib.sources.mkS3 {
+  s3 = nix-model-repo.lib.sources.mkS3 {
     bucket = "my-models";
     region = "us-west-2";
   };
@@ -174,7 +174,7 @@ mkMlflow :: AttrSet -> String -> AttrSet
 
 ```nix
 let
-  mlflow = nix-ai-models.lib.sources.mkMlflow {
+  mlflow = nix-model-repo.lib.sources.mkMlflow {
     trackingUri = "https://mlflow.company.com";
     defaultAuth.tokenEnvVar = "MLFLOW_TOKEN";
   };
@@ -198,7 +198,7 @@ mkGitLfs :: AttrSet -> String -> AttrSet
 
 ```nix
 let
-  git = nix-ai-models.lib.sources.mkGitLfs {
+  git = nix-model-repo.lib.sources.mkGitLfs {
     baseUrl = "https://github.com/company";
   };
 in
@@ -242,7 +242,7 @@ mkValidator :: AttrSet -> Validator
 
 ```nix
 let
-  mkValidator = nix-ai-models.lib.validation.mkValidator;
+  mkValidator = nix-model-repo.lib.validation.mkValidator;
 
   checkLicense = mkValidator {
     name = "check-license";
@@ -268,7 +268,7 @@ in
 Pre-configured validation settings.
 
 ```nix
-nix-ai-models.lib.validation.presets = {
+nix-model-repo.lib.validation.presets = {
   strict = { ... };    # Maximum security
   standard = { ... };  # Balanced defaults
   minimal = { ... };   # Fast, warnings only
@@ -282,7 +282,7 @@ nix-ai-models.lib.validation.presets = {
 Built-in validators.
 
 ```nix
-nix-ai-models.lib.validation.validators = {
+nix-model-repo.lib.validation.validators = {
   noPickleFiles = <validator>;
   safetensorsOnly = <validator>;
   maxSize = size: <validator>;
@@ -312,7 +312,7 @@ mkCacheName :: AttrSet -> String
 **Example:**
 
 ```nix
-nix-ai-models.lib.integration.mkCacheName {
+nix-model-repo.lib.integration.mkCacheName {
   org = "meta-llama";
   model = "Llama-2-7b-hf";
 }
@@ -332,7 +332,7 @@ mkLinkScript :: AttrSet -> String
 **Example:**
 
 ```nix
-nix-ai-models.lib.integration.mkLinkScript {
+nix-model-repo.lib.integration.mkLinkScript {
   model = myModel;
   cacheDir = "$HOME/.cache/huggingface/hub";
 }
@@ -351,7 +351,7 @@ getModelPath :: Derivation -> String
 **Example:**
 
 ```nix
-nix-ai-models.lib.integration.getModelPath myModel
+nix-model-repo.lib.integration.getModelPath myModel
 # Returns path to the latest snapshot
 ```
 
@@ -364,7 +364,7 @@ The flake provides these outputs:
 Library functions (system-independent).
 
 ```nix
-nix-ai-models.lib = {
+nix-model-repo.lib = {
   fetchModel = pkgs: config: <derivation>;
   instantiate = pkgs: defs: <attrset>;
   sources = { mkHuggingFace, mkS3, mkMlflow, ... };
@@ -378,7 +378,7 @@ nix-ai-models.lib = {
 Pre-defined models (per-system).
 
 ```nix
-nix-ai-models.models.x86_64-linux = {
+nix-model-repo.models.x86_64-linux = {
   # Test models
   test.empty = <derivation>;
   test.minimal = <derivation>;
@@ -390,7 +390,7 @@ nix-ai-models.models.x86_64-linux = {
 Raw model definitions (for customization).
 
 ```nix
-nix-ai-models.modelDefs = {
+nix-model-repo.modelDefs = {
   test.empty = { name = "..."; source = ...; hash = "..."; };
 };
 ```
@@ -400,7 +400,7 @@ nix-ai-models.modelDefs = {
 NixOS module for system-wide model management.
 
 ```nix
-nix-ai-models.nixosModules.default
+nix-model-repo.nixosModules.default
 ```
 
 ### homeManagerModules
@@ -408,7 +408,7 @@ nix-ai-models.nixosModules.default
 Home Manager module for per-user model management.
 
 ```nix
-nix-ai-models.homeManagerModules.default
+nix-model-repo.homeManagerModules.default
 ```
 
 ## Type Reference

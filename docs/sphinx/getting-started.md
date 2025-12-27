@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide will help you get started with Nix AI Models.
+This guide will help you get started with Nix Model Repo.
 
 ## Prerequisites
 
@@ -25,14 +25,14 @@ experimental-features = nix-command flakes
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
   in {
     packages.${system} = {
       # Your first model
@@ -126,7 +126,7 @@ model = AutoModel.from_pretrained("google-bert/bert-base-uncased")
 
 ```nix
 let
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
 in {
   packages.${system} = {
     llama = fetchModel {
@@ -184,10 +184,10 @@ For [devenv.sh](https://devenv.sh) development environments, we provide a dedica
 
 {
   imports = [
-    inputs.nix-ai-models.devenvModules.default
+    inputs.nix-model-repo.devenvModules.default
   ];
 
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     models.bert = {
       source.huggingface.repo = "google-bert/bert-base-uncased";

@@ -1,18 +1,18 @@
 # Devenv Integration
 
-Nix AI Models provides a [devenv](https://devenv.sh) module for seamless integration
+Nix Model Repo provides a [devenv](https://devenv.sh) module for seamless integration
 with devenv-based development environments.
 
 ## Installation
 
 ### Using devenv.yaml (Recommended)
 
-Add nix-ai-models as an input in your `devenv.yaml`:
+Add nix-model-repo as an input in your `devenv.yaml`:
 
 ```yaml
 inputs:
-  nix-ai-models:
-    url: github:your-org/nix-ai-models
+  nix-model-repo:
+    url: github:your-org/nix-model-repo
 ```
 
 Then import the module in your `devenv.nix`:
@@ -22,10 +22,10 @@ Then import the module in your `devenv.nix`:
 
 {
   imports = [
-    inputs.nix-ai-models.devenvModules.default
+    inputs.nix-model-repo.devenvModules.default
   ];
 
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     models = {
       bert = {
@@ -47,19 +47,19 @@ If you're using devenv with flakes:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, devenv, nix-ai-models, ... }@inputs:
+  outputs = { self, nixpkgs, devenv, nix-model-repo, ... }@inputs:
   let
     pkgs = nixpkgs.legacyPackages.x86_64-linux;
   in {
     devShells.x86_64-linux.default = devenv.lib.mkShell {
       inherit inputs pkgs;
       modules = [
-        nix-ai-models.devenvModules.default
+        nix-model-repo.devenvModules.default
         {
-          services.ai-models = {
+          services.model-repo = {
             enable = true;
             models.bert = {
               source.huggingface.repo = "google-bert/bert-base-uncased";
@@ -81,7 +81,7 @@ If you're using devenv with flakes:
 { pkgs, lib, ... }:
 
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -104,14 +104,14 @@ If you're using devenv with flakes:
 
 ### Options Reference
 
-#### `services.ai-models.enable`
+#### `services.model-repo.enable`
 
 - **Type:** `bool`
 - **Default:** `false`
 
 Enable AI model management.
 
-#### `services.ai-models.models`
+#### `services.model-repo.models`
 
 - **Type:** `attrsOf model`
 - **Default:** `{}`
@@ -125,21 +125,21 @@ Attribute set of models to fetch. Each model has:
 | `validation` | `attrs` | Optional validation settings |
 | `auth` | `attrs` | Optional authentication |
 
-#### `services.ai-models.cacheDir`
+#### `services.model-repo.cacheDir`
 
 - **Type:** `string`
-- **Default:** `".devenv/ai-models"`
+- **Default:** `".devenv/model-repo"`
 
 Directory for HuggingFace cache symlinks.
 
-#### `services.ai-models.linkToHuggingFace`
+#### `services.model-repo.linkToHuggingFace`
 
 - **Type:** `bool`
 - **Default:** `true`
 
 Create symlinks in HuggingFace cache directory structure.
 
-#### `services.ai-models.offlineMode`
+#### `services.model-repo.offlineMode`
 
 - **Type:** `bool`
 - **Default:** `true`
@@ -152,7 +152,7 @@ When enabled, the module sets:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `AI_MODEL_<NAME>` | Store path | Path to each model (uppercase name) |
+| `MODEL_REPO_<NAME>` | Store path | Path to each model (uppercase name) |
 | `HF_HOME` | Cache dir | HuggingFace cache directory |
 | `HF_HUB_OFFLINE` | `1` | Prevent downloads (if offlineMode) |
 | `TRANSFORMERS_OFFLINE` | `1` | Prevent downloads (if offlineMode) |
@@ -165,7 +165,7 @@ When enabled, the module sets:
 
 {
   imports = [
-    inputs.nix-ai-models.devenvModules.default
+    inputs.nix-model-repo.devenvModules.default
   ];
 
   # Python with ML libraries
@@ -176,7 +176,7 @@ When enabled, the module sets:
   };
 
   # AI Models
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -231,7 +231,7 @@ If you prefer not to use the module, you can use the library directly:
 { pkgs, lib, inputs, ... }:
 
 let
-  fetchModel = inputs.nix-ai-models.lib.fetchModel pkgs;
+  fetchModel = inputs.nix-model-repo.lib.fetchModel pkgs;
 
   bert = fetchModel {
     name = "bert-base";
@@ -259,7 +259,7 @@ in {
 Ensure the symlinks are created correctly:
 
 ```bash
-ls -la .devenv/ai-models/
+ls -la .devenv/model-repo/
 ```
 
 ### Hash Mismatch
@@ -292,7 +292,7 @@ export HF_TOKEN="hf_..."
 If you need to download new models, temporarily disable offline mode:
 
 ```nix
-services.ai-models.offlineMode = false;
+services.model-repo.offlineMode = false;
 ```
 
 Or manually:

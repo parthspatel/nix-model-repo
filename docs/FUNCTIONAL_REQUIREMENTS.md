@@ -1,4 +1,4 @@
-# Nix AI Model Plugin - Functional Requirements
+# Nix Model Repo Plugin - Functional Requirements
 
 ## 1. Overview
 
@@ -52,7 +52,7 @@ To remain FOD-compliant while supporting validation, we use a **two-derivation a
 │  │  - Runs security scanners (modelscan, pickle scan, etc.)     │   │
 │  │  - Runs custom validation scripts                            │   │
 │  │  - Creates HuggingFace-compatible directory structure        │   │
-│  │  - Adds metadata file (.nix-ai-model-meta.json)              │   │
+│  │  - Adds metadata file (.nix-model-repo-meta.json)              │   │
 │  │  - Output: /nix/store/<hash>-model-name                      │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -718,7 +718,7 @@ Our plugin creates a structure in the Nix store that can be symlinked into the H
 # │   └── abc123def456.../
 # │       ├── config.json              # Symlink → ../../blobs/...
 # │       └── model.safetensors        # Symlink → ../../blobs/...
-# └── .nix-ai-model-meta.json          # Our metadata
+# └── .nix-model-repo-meta.json          # Our metadata
 
 {
   integration.huggingface = {
@@ -897,13 +897,13 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }: {
+  outputs = { self, nixpkgs, nix-model-repo, ... }: {
     # Use in packages
     packages.x86_64-linux.my-app = let
-      llama = nix-ai-models.lib.fetchModel {
+      llama = nix-model-repo.lib.fetchModel {
         source.huggingface = {
           repo = "meta-llama/Llama-2-7b-hf";
           revision = "main";
@@ -924,7 +924,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ### 8.2 NixOS Module
 ```nix
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     models = {
       llama-2-7b = {
@@ -934,7 +934,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
       };
     };
     # System-wide cache directory
-    cacheDir = "/var/cache/ai-models";
+    cacheDir = "/var/cache/model-repo";
     # Users who can access models
     allowedUsers = [ "ml-user" "nginx" ];
   };
@@ -944,7 +944,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ### 8.3 Home Manager Module
 ```nix
 {
-  programs.ai-models = {
+  programs.model-repo = {
     enable = true;
     models = {
       my-model = { ... };
@@ -962,22 +962,22 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ### 9.1 Commands
 ```bash
 # Prefetch a model and get its hash
-nix-ai-model prefetch huggingface:meta-llama/Llama-2-7b-hf
+nix-model-repo prefetch huggingface:meta-llama/Llama-2-7b-hf
 
 # List cached models
-nix-ai-model list
+nix-model-repo list
 
 # Show model info
-nix-ai-model info llama-2-7b
+nix-model-repo info llama-2-7b
 
 # Clean unused models
-nix-ai-model gc
+nix-model-repo gc
 
 # Verify model integrity
-nix-ai-model verify llama-2-7b
+nix-model-repo verify llama-2-7b
 
 # Generate Nix expression from existing model
-nix-ai-model to-nix ./my-model-dir
+nix-model-repo to-nix ./my-model-dir
 ```
 
 ---
@@ -1381,7 +1381,7 @@ Per-source rate limiting to respect API limits and avoid bans:
       # Rate limit persistence (remember limits across builds)
       persistence = {
         enable = true;
-        stateFile = "/var/cache/nix-ai-models/rate-limit-state.json";
+        stateFile = "/var/cache/nix-model-repo/rate-limit-state.json";
       };
     };
   };
@@ -1454,7 +1454,7 @@ Handle multiple Nix builds trying to fetch the same model:
         scope = "global";         # global | per-user | per-build
 
         # Lock file location
-        lockDir = "/var/lock/nix-ai-models";
+        lockDir = "/var/lock/nix-model-repo";
 
         # Lock timeout (wait for other build to finish)
         timeout = 3600;           # 1 hour max wait
@@ -1468,10 +1468,10 @@ Handle multiple Nix builds trying to fetch the same model:
         enable = true;
 
         # Temporary cache for in-progress downloads
-        tempDir = "/var/cache/nix-ai-models/downloads";
+        tempDir = "/var/cache/nix-model-repo/downloads";
 
         # Completed downloads waiting to be copied to Nix store
-        stagingDir = "/var/cache/nix-ai-models/staging";
+        stagingDir = "/var/cache/nix-model-repo/staging";
 
         # Cache permissions
         mode = "0755";            # World-readable
@@ -1491,7 +1491,7 @@ Handle multiple Nix builds trying to fetch the same model:
 │  Build A starts: fetchModel { repo = "llama/7b"; hash = "sha256-x" }│
 │                          │                                           │
 │                          ▼                                           │
-│  1. Acquire lock: /var/lock/nix-ai-models/sha256-x.lock             │
+│  1. Acquire lock: /var/lock/nix-model-repo/sha256-x.lock             │
 │     → Lock acquired (first to request)                              │
 │                          │                                           │
 │  Build B starts: fetchModel { repo = "llama/7b"; hash = "sha256-x" }│
@@ -1696,7 +1696,7 @@ Models must work with Nix binary caches for team/CI sharing:
 ```nix
 {
   # Output includes metadata file
-  # $out/.nix-ai-model-meta.json
+  # $out/.nix-model-repo-meta.json
   {
     "name": "llama-2-7b",
     "source": "huggingface:meta-llama/Llama-2-7b-hf@main",
@@ -1719,7 +1719,7 @@ Models must work with Nix binary caches for team/CI sharing:
 {
   services.vllm = {
     enable = true;
-    model = nix-ai-models.lib.fetchModel {
+    model = nix-model-repo.lib.fetchModel {
       source.huggingface.repo = "meta-llama/Llama-2-70b-hf";
       hash = "sha256-abc123...";
       security.enableModelScan = true;
@@ -1735,7 +1735,7 @@ Models must work with Nix binary caches for team/CI sharing:
 {
   devShells.default = pkgs.mkShell {
     packages = [
-      (nix-ai-models.lib.fetchModel {
+      (nix-model-repo.lib.fetchModel {
         source.huggingface.repo = "microsoft/phi-2";
         hash = "sha256-...";
         integration.huggingface.enable = true;
@@ -2105,7 +2105,7 @@ jobs:
       - uses: cachix/install-nix-action@v24
       - uses: cachix/cachix-action@v12
         with:
-          name: nix-ai-models
+          name: nix-model-repo
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix build .#checks.x86_64-linux.e2e
 ```
@@ -2280,9 +2280,9 @@ source.huggingface = {
 
 ```bash
 # CLI helpers for GC management
-nix-ai-model pin llama-2-7b      # Create GC root
-nix-ai-model unpin llama-2-7b    # Remove GC root
-nix-ai-model list --pinned       # Show pinned models
+nix-model-repo pin llama-2-7b      # Create GC root
+nix-model-repo unpin llama-2-7b    # Remove GC root
+nix-model-repo list --pinned       # Show pinned models
 ```
 
 ---
@@ -2304,8 +2304,8 @@ nix-ai-model list --pinned       # Show pinned models
 
 ```nix
 # Pre-defined models with known-good hashes
-models.llama-2-7b = nix-ai-models.models.huggingface.meta-llama.Llama-2-7b-hf;
-models.mistral-7b = nix-ai-models.models.huggingface.mistralai.Mistral-7B-v0-1;
+models.llama-2-7b = nix-model-repo.models.huggingface.meta-llama.Llama-2-7b-hf;
+models.mistral-7b = nix-model-repo.models.huggingface.mistralai.Mistral-7B-v0-1;
 
 # Or fetch any model with your own hash
 models.custom = fetchModel {
@@ -2422,9 +2422,9 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
 
 | Option | Description | Pros | Cons |
 |--------|-------------|------|------|
-| **A. Lib functions only** | `nix-ai-models.lib.fetchModel` | Minimal, flexible | No pre-built models |
-| **B. Overlay** | `pkgs.ai-models.llama-2-7b` | Familiar, discoverable | Heavyweight |
-| **C. Flake outputs** | `nix-ai-models.models.llama-2-7b` | Direct access | Large flake eval |
+| **A. Lib functions only** | `nix-model-repo.lib.fetchModel` | Minimal, flexible | No pre-built models |
+| **B. Overlay** | `pkgs.model-repo.llama-2-7b` | Familiar, discoverable | Heavyweight |
+| **C. Flake outputs** | `nix-model-repo.models.llama-2-7b` | Direct access | Large flake eval |
 | **D. Separate flake per model** | `llama-2-7b.url = "..."` | Maximum cacheability | Many inputs |
 
 **Recommendation**: **Option A + C hybrid**.
@@ -2433,17 +2433,17 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
 
 ```nix
 {
-  inputs.nix-ai-models.url = "github:org/nix-ai-models";
+  inputs.nix-model-repo.url = "github:org/nix-model-repo";
 
-  outputs = { nix-ai-models, ... }: {
+  outputs = { nix-model-repo, ... }: {
     # Use pre-built model
     packages.default = let
-      llama = nix-ai-models.models.x86_64-linux.llama-2-7b;
+      llama = nix-model-repo.models.x86_64-linux.llama-2-7b;
     in ...;
 
     # Or fetch custom model
     packages.custom = let
-      myModel = nix-ai-models.lib.fetchModel { ... };
+      myModel = nix-model-repo.lib.fetchModel { ... };
     in ...;
   };
 }
