@@ -1,0 +1,113 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Prerelease identifier (e.g., alpha, beta, rc)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Calculate new version
+        id: version
+        run: |
+          CURRENT=$(cat VERSION | tr -d '[:space:]')
+          echo "Current version: $CURRENT"
+
+          # Parse current version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT%%-*}"
+
+          # Calculate new version
+          case "${{ github.event.inputs.bump_type }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          # Add prerelease if specified
+          if [ -n "${{ github.event.inputs.prerelease }}" ]; then
+            NEW_VERSION="${NEW_VERSION}-${{ github.event.inputs.prerelease }}"
+          fi
+
+          echo "New version: $NEW_VERSION"
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.version.outputs.new }}" > VERSION
+
+      - name: Update CHANGELOG
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          VERSION="${{ steps.version.outputs.new }}"
+
+          # Add new version section to changelog
+          if [ -f "docs/sphinx/changelog.md" ]; then
+            sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [$VERSION] - $DATE/" docs/sphinx/changelog.md
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump version to ${{ steps.version.outputs.new }}"
+          title: "Release v${{ steps.version.outputs.new }}"
+          body: |
+            ## Version Bump
+
+            Bumps version from `${{ steps.version.outputs.current }}` to `${{ steps.version.outputs.new }}`.
+
+            ### Type: ${{ github.event.inputs.bump_type }}
+
+            ### Checklist
+            - [ ] Review CHANGELOG updates
+            - [ ] Verify all tests pass
+            - [ ] Update documentation if needed
+
+            ### After Merge
+            1. Create and push a tag: `git tag v${{ steps.version.outputs.new }} && git push origin v${{ steps.version.outputs.new }}`
+            2. This will trigger the release workflow
+          branch: release/v${{ steps.version.outputs.new }}
+          base: main
+          labels: |
+            release
+            automated

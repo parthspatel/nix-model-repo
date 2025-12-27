@@ -1,0 +1,82 @@
+/* Custom CSS for Nix Model Repo documentation */
+
+/* Code block styling */
+.highlight pre {
+  border-radius: 6px;
+}
+
+/* Inline code styling */
+code.literal {
+  background-color: var(--color-background-secondary);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Nix code blocks */
+.highlight-nix .highlight {
+  background-color: var(--color-background-secondary);
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+th, td {
+  padding: 0.5em 1em;
+  text-align: left;
+  border-bottom: 1px solid var(--color-background-border);
+}
+
+th {
+  background-color: var(--color-background-secondary);
+  font-weight: 600;
+}
+
+/* Admonition styling */
+.admonition {
+  border-radius: 6px;
+  margin: 1em 0;
+}
+
+/* Note styling */
+.admonition.note {
+  border-left: 4px solid var(--color-brand-primary);
+}
+
+/* Warning styling */
+.admonition.warning {
+  border-left: 4px solid #f59e0b;
+}
+
+/* Sidebar adjustments */
+.sidebar-tree .reference {
+  font-size: 0.95em;
+}
+
+/* Definition list styling */
+dl.field-list > dt {
+  font-weight: 600;
+  color: var(--color-brand-content);
+}
+
+/* TOC styling */
+.toc-tree a {
+  display: block;
+  padding: 0.25em 0;
+}
+
+/* Header anchors */
+.headerlink {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+h1:hover .headerlink,
+h2:hover .headerlink,
+h3:hover .headerlink {
+  opacity: 1;
+}
