@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -114,7 +114,7 @@ jobs:
             system: aarch64-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -143,7 +143,7 @@ jobs:
     if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-models')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main

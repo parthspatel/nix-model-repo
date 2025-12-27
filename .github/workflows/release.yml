@@ -28,7 +28,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Determine version
         id: version
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -109,7 +109,7 @@ jobs:
     if: ${{ !github.event.inputs.dry_run }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -155,7 +155,7 @@ jobs:
   #   needs: [validate, release]
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v6
   #     - uses: DeterminateSystems/nix-installer-action@main
   #     - uses: DeterminateSystems/flakehub-push@main
   #       with:
