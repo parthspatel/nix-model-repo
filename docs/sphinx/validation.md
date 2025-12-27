@@ -1,6 +1,6 @@
 # Validation Framework
 
-Nix AI Models includes a comprehensive validation framework for security scanning
+Nix Model Repo includes a comprehensive validation framework for security scanning
 and model verification. Validation runs in a separate derivation after the model
 is fetched, ensuring reproducibility while enabling security checks.
 
@@ -44,7 +44,7 @@ Maximum security - fails on any security concern.
 
 ```nix
 let
-  presets = nix-ai-models.lib.validation.presets;
+  presets = nix-model-repo.lib.validation.presets;
 in
   fetchModel pkgs {
     name = "secure-model";
@@ -190,7 +190,7 @@ Create custom validators for your specific needs:
 
 ```nix
 let
-  mkValidator = nix-ai-models.lib.validation.mkValidator;
+  mkValidator = nix-model-repo.lib.validation.mkValidator;
 
   # Custom validator that checks for a license file
   requireLicense = mkValidator {
@@ -351,8 +351,8 @@ fetchModel pkgs {
 
 ```nix
 let
-  presets = nix-ai-models.lib.validation.presets;
-  validators = nix-ai-models.lib.validation.validators;
+  presets = nix-model-repo.lib.validation.presets;
+  validators = nix-model-repo.lib.validation.validators;
 in
   fetchModel pkgs {
     name = "custom-validated";

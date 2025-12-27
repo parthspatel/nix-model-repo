@@ -273,7 +273,7 @@ Instead of configuring individual options, use validation presets:
 
 ```nix
 let
-  presets = nix-ai-models.lib.validation.presets;
+  presets = nix-model-repo.lib.validation.presets;
 in
   fetchModel pkgs {
     name = "my-model";

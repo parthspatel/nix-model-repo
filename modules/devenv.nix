@@ -1,10 +1,10 @@
 # modules/devenv.nix
-# Devenv module for nix-ai-models
-# Usage: Import this module and configure services.ai-models
+# Devenv module for nix-model-repo
+# Usage: Import this module and configure services.model-repo
 { lib, pkgs, config, ... }:
 
 let
-  cfg = config.services.ai-models;
+  cfg = config.services.model-repo;
 
   # Import our library
   fetchModel = import ../lib/fetchModel.nix {
@@ -22,7 +22,7 @@ let
   builtModels = lib.mapAttrs buildModel cfg.models;
 
 in {
-  options.services.ai-models = {
+  options.services.model-repo = {
     enable = lib.mkEnableOption "AI model management";
 
     models = lib.mkOption {
@@ -74,7 +74,7 @@ in {
 
     cacheDir = lib.mkOption {
       type = lib.types.str;
-      default = ".devenv/ai-models";
+      default = ".devenv/model-repo";
       description = "Directory for HuggingFace cache symlinks";
     };
 
@@ -94,7 +94,7 @@ in {
   config = lib.mkIf cfg.enable {
     # Add model paths as environment variables
     env = lib.mapAttrs'
-      (name: model: lib.nameValuePair "AI_MODEL_${lib.toUpper name}" "${model}")
+      (name: model: lib.nameValuePair "MODEL_REPO_${lib.toUpper name}" "${model}")
       builtModels;
 
     # Set HuggingFace offline mode

@@ -1,6 +1,6 @@
 # NixOS & Home Manager Modules
 
-Nix AI Models provides modules for system-wide and per-user model management.
+Nix Model Repo provides modules for system-wide and per-user model management.
 
 ## NixOS Module
 
@@ -15,14 +15,14 @@ Add to your flake:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { nixpkgs, nix-ai-models, ... }: {
+  outputs = { nixpkgs, nix-model-repo, ... }: {
     nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        nix-ai-models.nixosModules.default
+        nix-model-repo.nixosModules.default
         ./configuration.nix
       ];
     };
@@ -37,7 +37,7 @@ Add to your flake:
 { config, pkgs, ... }:
 
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -58,7 +58,7 @@ Add to your flake:
 ### Full Options Reference
 
 ```nix
-services.ai-models = {
+services.model-repo = {
   # Enable the service
   enable = true;
 
@@ -88,7 +88,7 @@ services.ai-models = {
   };
 
   # Users/groups with access
-  group = "ai-models";            # Group with read access
+  group = "model-repo";            # Group with read access
 };
 ```
 
@@ -102,14 +102,14 @@ The module creates a systemd service that:
 
 ```nix
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     models.llama = { ... };
   };
 
   # Use in other services
   systemd.services.my-inference = {
-    after = [ "ai-models.service" ];
+    after = [ "model-repo.service" ];
     environment = {
       HF_HOME = "/var/cache/huggingface";
       HF_HUB_OFFLINE = "1";
@@ -124,7 +124,7 @@ Make models available in NixOS containers:
 
 ```nix
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     models.llama = { ... };
   };
@@ -132,7 +132,7 @@ Make models available in NixOS containers:
   containers.inference = {
     bindMounts = {
       "/models" = {
-        hostPath = config.services.ai-models.modelPaths.llama;
+        hostPath = config.services.model-repo.modelPaths.llama;
         isReadOnly = true;
       };
     };
@@ -158,14 +158,14 @@ Add to your home-manager configuration:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { nixpkgs, home-manager, nix-ai-models, ... }: {
+  outputs = { nixpkgs, home-manager, nix-model-repo, ... }: {
     homeConfigurations.myuser = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       modules = [
-        nix-ai-models.homeManagerModules.default
+        nix-model-repo.homeManagerModules.default
         ./home.nix
       ];
     };
@@ -180,7 +180,7 @@ Add to your home-manager configuration:
 { config, pkgs, ... }:
 
 {
-  programs.ai-models = {
+  programs.model-repo = {
     enable = true;
 
     models = {
@@ -199,7 +199,7 @@ Add to your home-manager configuration:
 ### Full Options Reference
 
 ```nix
-programs.ai-models = {
+programs.model-repo = {
   # Enable model management
   enable = true;
 
@@ -251,7 +251,7 @@ Combine with development shells:
 { config, pkgs, ... }:
 
 {
-  programs.ai-models = {
+  programs.model-repo = {
     enable = true;
     models.bert = { ... };
   };
@@ -281,7 +281,7 @@ Combine with development shells:
 { config, pkgs, ... }:
 
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -297,7 +297,7 @@ Combine with development shells:
                     (lib.range 1 15));
         };
         hash = "sha256-...";
-        validation = nix-ai-models.lib.validation.presets.strict;
+        validation = nix-model-repo.lib.validation.presets.strict;
       };
     };
 
@@ -307,7 +307,7 @@ Combine with development shells:
 
   # Inference service
   systemd.services.vllm = {
-    after = [ "ai-models.service" ];
+    after = [ "model-repo.service" ];
     wantedBy = [ "multi-user.target" ];
 
     environment = {
@@ -318,7 +318,7 @@ Combine with development shells:
     serviceConfig = {
       ExecStart = "${pkgs.vllm}/bin/vllm serve meta-llama/Llama-2-70b-chat-hf";
       User = "vllm";
-      Group = "ai-models";
+      Group = "model-repo";
     };
   };
 }
@@ -331,7 +331,7 @@ Combine with development shells:
 { config, pkgs, ... }:
 
 {
-  programs.ai-models = {
+  programs.model-repo = {
     enable = true;
 
     models = {
@@ -391,7 +391,7 @@ let
     };
   };
 in {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
     inherit models;
   };
@@ -399,15 +399,15 @@ in {
   # Each stage of the pipeline
   systemd.services = {
     embedding-service = {
-      environment.MODEL_PATH = config.services.ai-models.modelPaths.embedding;
+      environment.MODEL_PATH = config.services.model-repo.modelPaths.embedding;
       # ...
     };
     reranker-service = {
-      environment.MODEL_PATH = config.services.ai-models.modelPaths.reranker;
+      environment.MODEL_PATH = config.services.model-repo.modelPaths.reranker;
       # ...
     };
     generator-service = {
-      environment.MODEL_PATH = config.services.ai-models.modelPaths.generator;
+      environment.MODEL_PATH = config.services.model-repo.modelPaths.generator;
       # ...
     };
   };
@@ -422,7 +422,7 @@ Ensure the module is added to your configuration:
 
 ```nix
 modules = [
-  nix-ai-models.nixosModules.default  # or homeManagerModules.default
+  nix-model-repo.nixosModules.default  # or homeManagerModules.default
   ./your-config.nix
 ];
 ```
@@ -433,7 +433,7 @@ Check the activation log:
 
 ```bash
 # NixOS
-journalctl -u ai-models
+journalctl -u model-repo
 
 # Home Manager
 cat ~/.local/state/home-manager/activation.log
@@ -441,8 +441,8 @@ cat ~/.local/state/home-manager/activation.log
 
 ### Permission Denied
 
-Ensure your user is in the `ai-models` group:
+Ensure your user is in the `model-repo` group:
 
 ```nix
-users.users.myuser.extraGroups = [ "ai-models" ];
+users.users.myuser.extraGroups = [ "model-repo" ];
 ```

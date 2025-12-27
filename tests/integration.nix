@@ -1,5 +1,5 @@
 # tests/integration.nix
-# Integration tests for nix-ai-models
+# Integration tests for nix-model-repo
 # These tests build actual derivations
 { lib, pkgs }:
 

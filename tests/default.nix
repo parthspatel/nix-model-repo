@@ -1,5 +1,5 @@
 # tests/default.nix
-# Test suite for nix-ai-models
+# Test suite for nix-model-repo
 # Usage: nix build .#checks.<system>.all-tests
 { lib, pkgs }:
 
@@ -64,7 +64,7 @@ in {
   # Derivations for CI
   checks = {
     # Unit tests (pure Nix evaluation)
-    unit-tests = pkgs.runCommand "nix-ai-models-unit-tests" {} ''
+    unit-tests = pkgs.runCommand "nix-model-repo-unit-tests" {} ''
       echo "=== Unit Tests ==="
       ${lib.concatMapStringsSep "\n" (name:
         let tests = allUnitTests.${name};
@@ -84,7 +84,7 @@ in {
     integration-tests = integrationTests.check;
 
     # All tests combined
-    all = pkgs.runCommand "nix-ai-models-all-tests" {
+    all = pkgs.runCommand "nix-model-repo-all-tests" {
       unitTests = allUnitTests;
     } ''
       echo "=== Running All Tests ==="

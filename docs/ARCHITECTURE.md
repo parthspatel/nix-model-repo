@@ -1,4 +1,4 @@
-# Nix AI Model Plugin - Architecture Design
+# Nix Model Repo Plugin - Architecture Design
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              USER INTERFACE                                  │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   flake.nix │  │ NixOS Module│  │ Home Manager│  │ CLI: nix-ai-model   │ │
+│  │   flake.nix │  │ NixOS Module│  │ Home Manager│  │ CLI: nix-model-repo   │ │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘ │
 └─────────┼────────────────┼────────────────┼────────────────────┼────────────┘
           │                │                │                    │
@@ -149,7 +149,7 @@ nix-huggingface/
 │       └── default.nix
 │
 ├── cli/                         # CLI tool source
-│   └── nix-ai-model.sh          # Main CLI script
+│   └── nix-model-repo.sh          # Main CLI script
 │
 ├── tests/                       # Test suite
 │   ├── unit/                    # Pure Nix function tests
@@ -288,7 +288,7 @@ nix-huggingface/
 │  - Reads HF_TOKEN from environment                                          │
 │  - Downloads each file with curl                                            │
 │  - Creates HuggingFace cache structure (blobs/, refs/, snapshots/)          │
-│  - Writes metadata to .nix-ai-model-meta.json                               │
+│  - Writes metadata to .nix-model-repo-meta.json                               │
 │           │                                                                  │
 │           ▼                                                                  │
 │  Step 5: Hash Verification                                                   │
@@ -312,7 +312,7 @@ nix-huggingface/
 │  ├── blobs/                                                                  │
 │  ├── refs/                                                                   │
 │  ├── snapshots/                                                              │
-│  └── .nix-ai-model-meta.json                                                │
+│  └── .nix-model-repo-meta.json                                                │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -619,7 +619,7 @@ write_metadata() {
     local source="$2"
     local fetched_at="$3"
 
-    cat > "$output/.nix-ai-model-meta.json" << EOF
+    cat > "$output/.nix-model-repo-meta.json" << EOF
 {
   "source": "$source",
   "fetchedAt": "$fetched_at",
@@ -997,7 +997,7 @@ rec {
           "validators": ${builtins.toJSON (map (v: v.name) allValidators)},
           "passed": true
         }
-      }' $src/.nix-ai-model-meta.json > $out/.nix-ai-model-meta.json
+      }' $src/.nix-model-repo-meta.json > $out/.nix-model-repo-meta.json
 
       runHook postInstall
     '';
@@ -1109,7 +1109,7 @@ rec {
 {
   devShells.default = pkgs.mkShell {
     packages = [
-      (nix-ai-models.lib.fetchModel {
+      (nix-model-repo.lib.fetchModel {
         name = "llama-2-7b";
         source.huggingface.repo = "meta-llama/Llama-2-7b-hf";
         hash = "sha256-...";
@@ -1118,7 +1118,7 @@ rec {
 
     shellHook = ''
       # Automatically setup HuggingFace cache symlinks
-      ${nix-ai-models.lib.mkShellHook {
+      ${nix-model-repo.lib.mkShellHook {
         models = [{
           path = llama-model;
           org = "meta-llama";
@@ -1148,7 +1148,7 @@ rec {
 with lib;
 
 let
-  cfg = config.services.ai-models;
+  cfg = config.services.model-repo;
   modelType = types.submodule {
     options = {
       source = mkOption {
@@ -1167,7 +1167,7 @@ let
     };
   };
 in {
-  options.services.ai-models = {
+  options.services.model-repo = {
     enable = mkEnableOption "AI model management";
 
     models = mkOption {
@@ -1186,7 +1186,7 @@ in {
 
     cacheDir = mkOption {
       type = types.path;
-      default = "/var/cache/ai-models";
+      default = "/var/cache/model-repo";
       description = "Directory for model cache and HuggingFace symlinks";
     };
 
@@ -1206,7 +1206,7 @@ in {
   config = mkIf cfg.enable {
     # Build all models
     system.extraDependencies = mapAttrsToList (name: modelCfg:
-      nix-ai-models.lib.fetchModel ({
+      nix-model-repo.lib.fetchModel ({
         inherit name;
         inherit (modelCfg) source hash;
       } // modelCfg.validation)
@@ -1219,11 +1219,11 @@ in {
     ];
 
     # Create symlinks on activation
-    system.activationScripts.ai-models = stringAfter [ "users" "groups" ] ''
+    system.activationScripts.model-repo = stringAfter [ "users" "groups" ] ''
       echo "Setting up AI model symlinks..."
       ${concatMapStringsSep "\n" (name: let
         model = cfg.models.${name};
-        modelDrv = nix-ai-models.lib.fetchModel {
+        modelDrv = nix-model-repo.lib.fetchModel {
           inherit name;
           inherit (model) source hash;
         };
@@ -1254,9 +1254,9 @@ in {
 with lib;
 
 let
-  cfg = config.programs.ai-models;
+  cfg = config.programs.model-repo;
 in {
-  options.programs.ai-models = {
+  options.programs.model-repo = {
     enable = mkEnableOption "AI model management for user";
 
     models = mkOption {
@@ -1285,20 +1285,20 @@ in {
   config = mkIf cfg.enable {
     # Build models and add to user packages (for GC root)
     home.packages = mapAttrsToList (name: modelCfg:
-      nix-ai-models.lib.fetchModel {
+      nix-model-repo.lib.fetchModel {
         inherit name;
         inherit (modelCfg) source hash;
       }
     ) cfg.models;
 
     # Create symlinks
-    home.activation.ai-models = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    home.activation.model-repo = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       echo "Setting up AI model symlinks..."
       mkdir -p ~/.cache/huggingface/hub
 
       ${concatMapStringsSep "\n" (name: let
         model = cfg.models.${name};
-        modelDrv = nix-ai-models.lib.fetchModel {
+        modelDrv = nix-model-repo.lib.fetchModel {
           inherit name;
           inherit (model) source hash;
         };
@@ -1325,10 +1325,10 @@ in {
 ### 12.1 CLI Design
 
 ```
-nix-ai-model - Nix AI Model Manager
+nix-model-repo - Nix Model Repo Manager
 
 USAGE:
-    nix-ai-model <COMMAND> [OPTIONS]
+    nix-model-repo <COMMAND> [OPTIONS]
 
 COMMANDS:
     prefetch    Download a model and print its hash
@@ -1339,23 +1339,23 @@ COMMANDS:
 
 EXAMPLES:
     # Get hash for a new model
-    nix-ai-model prefetch huggingface:meta-llama/Llama-2-7b-hf
+    nix-model-repo prefetch huggingface:meta-llama/Llama-2-7b-hf
 
     # List cached models
-    nix-ai-model list
+    nix-model-repo list
 
     # Pin a model to prevent garbage collection
-    nix-ai-model gc pin llama-2-7b
+    nix-model-repo gc pin llama-2-7b
 
     # Verify model hasn't changed upstream
-    nix-ai-model verify llama-2-7b
+    nix-model-repo verify llama-2-7b
 ```
 
 ### 12.2 CLI Implementation
 
 ```bash
 #!/usr/bin/env bash
-# cli/nix-ai-model.sh
+# cli/nix-model-repo.sh
 
 set -euo pipefail
 
@@ -1367,10 +1367,10 @@ NC='\033[0m' # No Color
 
 usage() {
     cat << 'EOF'
-nix-ai-model - Nix AI Model Manager
+nix-model-repo - Nix Model Repo Manager
 
 USAGE:
-    nix-ai-model <COMMAND> [OPTIONS]
+    nix-model-repo <COMMAND> [OPTIONS]
 
 COMMANDS:
     prefetch <source:repo>      Download model and print hash
@@ -1385,10 +1385,10 @@ OPTIONS:
     -v, --verbose               Verbose output
 
 EXAMPLES:
-    nix-ai-model prefetch huggingface:meta-llama/Llama-2-7b-hf
-    nix-ai-model prefetch huggingface:microsoft/phi-2@main
-    nix-ai-model list
-    nix-ai-model gc pin llama-2-7b
+    nix-model-repo prefetch huggingface:meta-llama/Llama-2-7b-hf
+    nix-model-repo prefetch huggingface:microsoft/phi-2@main
+    nix-model-repo list
+    nix-model-repo gc pin llama-2-7b
 EOF
 }
 
@@ -1411,7 +1411,7 @@ cmd_prefetch() {
     local result
     result=$(nix build --impure --expr "
       let
-        flake = builtins.getFlake \"github:your-org/nix-ai-models\";
+        flake = builtins.getFlake \"github:your-org/nix-model-repo\";
         pkgs = import <nixpkgs> {};
       in
         flake.lib.fetchModel {
@@ -1447,7 +1447,7 @@ cmd_list() {
     echo ""
 
     # Find models by metadata file
-    find /nix/store -maxdepth 2 -name ".nix-ai-model-meta.json" 2>/dev/null | while read -r meta; do
+    find /nix/store -maxdepth 2 -name ".nix-model-repo-meta.json" 2>/dev/null | while read -r meta; do
         local dir
         dir=$(dirname "$meta")
         local name
@@ -1472,7 +1472,7 @@ cmd_info() {
         exit 1
     fi
 
-    local meta="$path/.nix-ai-model-meta.json"
+    local meta="$path/.nix-model-repo-meta.json"
     if [[ -f "$meta" ]]; then
         echo "Model: $model"
         echo "Path: $path"
@@ -1486,7 +1486,7 @@ cmd_info() {
 cmd_gc() {
     local action="$1"
     local model="$2"
-    local gc_root_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nix-ai-models/gc-roots"
+    local gc_root_dir="${XDG_DATA_HOME:-$HOME/.local/share}/nix-model-repo/gc-roots"
 
     mkdir -p "$gc_root_dir"
 
@@ -1506,7 +1506,7 @@ cmd_gc() {
             echo -e "${GREEN}Unpinned: $model${NC}"
             ;;
         *)
-            echo "Usage: nix-ai-model gc [pin|unpin] <model>"
+            echo "Usage: nix-model-repo gc [pin|unpin] <model>"
             exit 1
             ;;
     esac
@@ -1576,7 +1576,7 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
   │      export HF_TOKEN=your_token_here
   │   5. Retry the build
   │
-  └─ For more help: https://github.com/your-org/nix-ai-models/wiki/Gated-Models
+  └─ For more help: https://github.com/your-org/nix-model-repo/wiki/Gated-Models
 ```
 
 ### 13.3 Error Handling Implementation
@@ -2023,9 +2023,9 @@ fetchModel
 
 ```nix
 let
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
-  presets = nix-ai-models.lib.validation.presets;
-  validators = nix-ai-models.lib.validation.validators;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
+  presets = nix-model-repo.lib.validation.presets;
+  validators = nix-model-repo.lib.validation.validators;
 in {
   # Use a preset directly
   prod-model = fetchModel {
@@ -2144,7 +2144,7 @@ let
   # Factory for your S3 model bucket
   mkS3Source = { prefix, files ? null }: {
     s3 = {
-      bucket = "mycompany-ai-models";
+      bucket = "mycompany-model-repo";
       region = "us-west-2";
       inherit prefix files;
     };
@@ -2167,7 +2167,7 @@ let
     };
   };
 
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
 in {
   # Now use factories - minimal config per model
   packages.${system} = {
@@ -2290,8 +2290,8 @@ in {
 
 ```nix
 let
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
-  sources = nix-ai-models.lib.sources;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
+  sources = nix-model-repo.lib.sources;
 
   # Create company-specific factories
   myMlflow = sources.mkMlflow {
@@ -2369,9 +2369,9 @@ For complete model configurations, not just sources:
 
 ```nix
 let
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
-  presets = nix-ai-models.lib.validation.presets;
-  sources = nix-ai-models.lib.sources;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
+  presets = nix-model-repo.lib.validation.presets;
+  sources = nix-model-repo.lib.sources;
 
   # Base configuration shared across models
   baseConfig = {
@@ -2430,8 +2430,8 @@ Same model from different sources:
 
 ```nix
 let
-  fetchModel = nix-ai-models.lib.fetchModel pkgs;
-  sources = nix-ai-models.lib.sources;
+  fetchModel = nix-model-repo.lib.fetchModel pkgs;
+  sources = nix-model-repo.lib.sources;
 
   # Define model variants
   mistral7b = {
@@ -2492,7 +2492,7 @@ in {
 ```nix
 # flake.nix
 {
-  description = "Nix AI Model Manager - Reproducible AI/ML model management";
+  description = "Nix Model Repo Manager - Reproducible AI/ML model management";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -2562,11 +2562,11 @@ in {
 
     # NixOS module
     nixosModules.default = import ./modules/nixos.nix;
-    nixosModules.ai-models = self.nixosModules.default;
+    nixosModules.model-repo = self.nixosModules.default;
 
     # Home Manager module
     homeManagerModules.default = import ./modules/home-manager.nix;
-    homeManagerModules.ai-models = self.homeManagerModules.default;
+    homeManagerModules.model-repo = self.homeManagerModules.default;
 
     # Overlay for pkgs integration
     overlays.default = final: prev: {
@@ -2599,14 +2599,14 @@ in {
 
     # CLI tool
     packages = {
-      default = self.packages.${system}.nix-ai-model;
-      nix-ai-model = pkgs.callPackage ./cli { };
+      default = self.packages.${system}.nix-model-repo;
+      nix-model-repo = pkgs.callPackage ./cli { };
     };
 
     # Development shell
     devShells.default = pkgs.mkShell {
       packages = [
-        self.packages.${system}.nix-ai-model
+        self.packages.${system}.nix-model-repo
         pkgs.jq
         pkgs.curl
       ];
@@ -2645,22 +2645,22 @@ in {
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
 
     # Access library
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
-    sources = nix-ai-models.lib.sources;
-    presets = nix-ai-models.lib.validation.presets;
-    validators = nix-ai-models.lib.validation.validators;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
+    sources = nix-model-repo.lib.sources;
+    presets = nix-model-repo.lib.validation.presets;
+    validators = nix-model-repo.lib.validation.validators;
 
     # Access pre-built registry
-    models = nix-ai-models.models.${system};
+    models = nix-model-repo.models.${system};
 
     # Create custom source factories
     myMlflow = sources.mkMlflow {
@@ -2705,7 +2705,7 @@ in {
         self.packages.${system}.mistral
       ];
 
-      shellHook = nix-ai-models.lib.mkShellHook pkgs {
+      shellHook = nix-model-repo.lib.mkShellHook pkgs {
         models = [
           { drv = self.packages.${system}.llama; org = "meta-llama"; model = "Llama-2-7b-hf"; }
           { drv = self.packages.${system}.mistral; org = "mistralai"; model = "Mistral-7B-v0.1"; }
@@ -2723,7 +2723,7 @@ in {
 1. **Implement Core Library** (`lib/fetchModel.nix`, `lib/sources/*.nix`)
 2. **Write HuggingFace Fetcher** (`fetchers/huggingface.sh`)
 3. **Create Validation Framework** (`lib/validation/*.nix`)
-4. **Build CLI Tool** (`cli/nix-ai-model.sh`)
+4. **Build CLI Tool** (`cli/nix-model-repo.sh`)
 5. **Create Test Suite** (unit tests for Nix functions)
 6. **Add NixOS Module** (`modules/nixos.nix`)
 7. **Write Documentation** (`docs/USAGE.md`)

@@ -60,7 +60,7 @@ in {
   # Metadata for derivations
   meta = {
     inherit version;
-    homepage = "https://github.com/your-org/nix-ai-models";
-    changelog = "https://github.com/your-org/nix-ai-models/blob/main/CHANGELOG.md";
+    homepage = "https://github.com/your-org/nix-model-repo";
+    changelog = "https://github.com/your-org/nix-model-repo/blob/main/CHANGELOG.md";
   };
 }

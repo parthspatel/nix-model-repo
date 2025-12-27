@@ -279,14 +279,14 @@ write_metadata() {
     local fetched_at="$3"
     local extra="${4:-}"
 
-    local meta_file="$output_dir/.nix-ai-model-meta.json"
+    local meta_file="$output_dir/.nix-model-repo-meta.json"
 
     if [[ -n "$extra" ]]; then
         cat > "$meta_file" << EOF
 {
   "source": "$source",
   "fetchedAt": "$fetched_at",
-  "nixAiModelVersion": "1.0.0",
+  "nixModelRepoVersion": "1.0.0",
   $extra
 }
 EOF
@@ -295,7 +295,7 @@ EOF
 {
   "source": "$source",
   "fetchedAt": "$fetched_at",
-  "nixAiModelVersion": "1.0.0"
+  "nixModelRepoVersion": "1.0.0"
 }
 EOF
     fi

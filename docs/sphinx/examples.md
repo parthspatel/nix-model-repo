@@ -27,14 +27,14 @@ A minimal flake that fetches a single model:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
   in {
     packages.${system}.default = fetchModel {
       name = "bert-base";
@@ -56,14 +56,14 @@ A flake with multiple models for different purposes:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
   in {
     packages.${system} = {
       # Embedding model
@@ -103,15 +103,15 @@ A flake with models and a development shell:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, flake-utils, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        fetchModel = nix-ai-models.lib.fetchModel pkgs;
+        fetchModel = nix-model-repo.lib.fetchModel pkgs;
 
         # Define models
         models = {
@@ -178,16 +178,16 @@ A flake for production deployment with strict validation:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
-    presets = nix-ai-models.lib.validation.presets;
-    validators = nix-ai-models.lib.validation.validators;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
+    presets = nix-model-repo.lib.validation.presets;
+    validators = nix-model-repo.lib.validation.validators;
   in {
     packages.${system} = {
       # Production model with strict validation
@@ -264,15 +264,15 @@ A flake using models from different sources:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
-    sources = nix-ai-models.lib.sources;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
+    sources = nix-model-repo.lib.sources;
 
     # Create source factories
     companyS3 = sources.mkS3 {
@@ -342,17 +342,17 @@ A flake demonstrating different validation configurations:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }:
+  outputs = { self, nixpkgs, nix-model-repo, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
-    fetchModel = nix-ai-models.lib.fetchModel pkgs;
-    presets = nix-ai-models.lib.validation.presets;
-    validators = nix-ai-models.lib.validation.validators;
-    mkValidator = nix-ai-models.lib.validation.mkValidator;
+    fetchModel = nix-model-repo.lib.fetchModel pkgs;
+    presets = nix-model-repo.lib.validation.presets;
+    validators = nix-model-repo.lib.validation.validators;
+    mkValidator = nix-model-repo.lib.validation.mkValidator;
 
     # Custom validator
     requireReadme = mkValidator {
@@ -434,20 +434,20 @@ A complete NixOS configuration with AI models:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, nix-ai-models, ... }: {
+  outputs = { self, nixpkgs, nix-model-repo, ... }: {
     nixosConfigurations.ai-server = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        nix-ai-models.nixosModules.default
+        nix-model-repo.nixosModules.default
         ({ config, pkgs, ... }: {
           # System configuration
           networking.hostName = "ai-server";
 
           # AI Models configuration
-          services.ai-models = {
+          services.model-repo = {
             enable = true;
 
             models = {
@@ -463,34 +463,34 @@ A complete NixOS configuration with AI models:
 
             integration.huggingface = {
               enable = true;
-              cacheDir = "/var/lib/ai-models/cache";
+              cacheDir = "/var/lib/model-repo/cache";
             };
 
             auth.tokenFile = "/run/secrets/hf-token";
           };
 
           # Users who can access models
-          users.groups.ai-models = {};
+          users.groups.model-repo = {};
           users.users.inference = {
             isSystemUser = true;
-            group = "ai-models";
+            group = "model-repo";
           };
 
           # Inference service example
           systemd.services.inference-api = {
             description = "AI Inference API";
-            after = [ "ai-models.service" "network.target" ];
+            after = [ "model-repo.service" "network.target" ];
             wantedBy = [ "multi-user.target" ];
 
             environment = {
-              HF_HOME = "/var/lib/ai-models/cache";
+              HF_HOME = "/var/lib/model-repo/cache";
               HF_HUB_OFFLINE = "1";
             };
 
             serviceConfig = {
               Type = "simple";
               User = "inference";
-              Group = "ai-models";
+              Group = "model-repo";
               ExecStart = "${pkgs.python3}/bin/python -m my_inference_server";
             };
           };
@@ -513,21 +513,21 @@ A Home Manager configuration with AI models:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
-  outputs = { self, nixpkgs, home-manager, nix-ai-models, ... }: {
+  outputs = { self, nixpkgs, home-manager, nix-model-repo, ... }: {
     homeConfigurations.developer = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       modules = [
-        nix-ai-models.homeManagerModules.default
+        nix-model-repo.homeManagerModules.default
         ({ config, pkgs, ... }: {
           home.username = "developer";
           home.homeDirectory = "/home/developer";
           home.stateVersion = "24.05";
 
           # AI Models
-          programs.ai-models = {
+          programs.model-repo = {
             enable = true;
             models = {
               bert = {
@@ -580,8 +580,8 @@ A [devenv](https://devenv.sh) configuration with AI models. See the full [Devenv
 **devenv.yaml:**
 ```yaml
 inputs:
-  nix-ai-models:
-    url: github:your-org/nix-ai-models
+  nix-model-repo:
+    url: github:your-org/nix-model-repo
 ```
 
 **devenv.nix:**
@@ -590,10 +590,10 @@ inputs:
 
 {
   imports = [
-    inputs.nix-ai-models.devenvModules.default
+    inputs.nix-model-repo.devenvModules.default
   ];
 
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -632,11 +632,11 @@ A complete ML development environment:
 
 {
   imports = [
-    inputs.nix-ai-models.devenvModules.default
+    inputs.nix-model-repo.devenvModules.default
   ];
 
   # AI Models with different configurations
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -742,7 +742,7 @@ Using devenv with a flake for more control:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
-    nix-ai-models.url = "github:your-org/nix-ai-models";
+    nix-model-repo.url = "github:your-org/nix-model-repo";
   };
 
   nixConfig = {
@@ -750,7 +750,7 @@ Using devenv with a flake for more control:
     extra-substituters = "https://devenv.cachix.org";
   };
 
-  outputs = { self, nixpkgs, devenv, nix-ai-models, ... }@inputs:
+  outputs = { self, nixpkgs, devenv, nix-model-repo, ... }@inputs:
   let
     systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
     forEachSystem = nixpkgs.lib.genAttrs systems;
@@ -767,9 +767,9 @@ Using devenv with a flake for more control:
           inherit inputs pkgs;
 
           modules = [
-            nix-ai-models.devenvModules.default
+            nix-model-repo.devenvModules.default
             {
-              services.ai-models = {
+              services.model-repo = {
                 enable = true;
                 models = {
                   bert = {
@@ -802,7 +802,7 @@ If you prefer not to use the module, you can use the library directly:
 { pkgs, lib, inputs, ... }:
 
 let
-  fetchModel = inputs.nix-ai-models.lib.fetchModel pkgs;
+  fetchModel = inputs.nix-model-repo.lib.fetchModel pkgs;
 
   # Define models
   bert = fetchModel {

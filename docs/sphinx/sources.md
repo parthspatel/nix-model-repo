@@ -1,6 +1,6 @@
 # Model Sources
 
-Nix AI Models supports multiple model sources through a pluggable adapter system.
+Nix Model Repo supports multiple model sources through a pluggable adapter system.
 Each source type has its own configuration options and authentication methods.
 
 ## HuggingFace Hub
@@ -373,7 +373,7 @@ For DRY configuration, use source factories to create reusable source templates:
 
 ```nix
 let
-  sources = nix-ai-models.lib.sources;
+  sources = nix-model-repo.lib.sources;
 
   # Create a factory for your organization's models
   companyHF = sources.mkHuggingFace {

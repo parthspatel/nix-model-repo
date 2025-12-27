@@ -121,10 +121,10 @@ in {
           chmod -R u+w $out
 
           # Update metadata to indicate validation was skipped
-          if [[ -f $out/.nix-ai-model-meta.json ]]; then
+          if [[ -f $out/.nix-model-repo-meta.json ]]; then
             ${pkgs.jq}/bin/jq '. + {"validation": {"enabled": false, "skipped": true}}' \
-              $out/.nix-ai-model-meta.json > $out/.nix-ai-model-meta.json.tmp
-            mv $out/.nix-ai-model-meta.json.tmp $out/.nix-ai-model-meta.json
+              $out/.nix-model-repo-meta.json > $out/.nix-model-repo-meta.json.tmp
+            mv $out/.nix-model-repo-meta.json.tmp $out/.nix-model-repo-meta.json
           fi
         ''
       else
@@ -156,7 +156,7 @@ in {
             chmod -R u+w $out
 
             # Update metadata with validation results
-            if [[ -f $out/.nix-ai-model-meta.json ]]; then
+            if [[ -f $out/.nix-model-repo-meta.json ]]; then
               ${pkgs.jq}/bin/jq '. + {
                 "validation": {
                   "enabled": true,
@@ -164,8 +164,8 @@ in {
                   "validators": ${builtins.toJSON (map (v: v.name) allValidators)},
                   "passed": true
                 }
-              }' $out/.nix-ai-model-meta.json > $out/.nix-ai-model-meta.json.tmp
-              mv $out/.nix-ai-model-meta.json.tmp $out/.nix-ai-model-meta.json
+              }' $out/.nix-model-repo-meta.json > $out/.nix-model-repo-meta.json.tmp
+              mv $out/.nix-model-repo-meta.json.tmp $out/.nix-model-repo-meta.json
             fi
 
             runHook postInstall

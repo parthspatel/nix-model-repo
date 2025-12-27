@@ -1,6 +1,6 @@
 # HuggingFace Integration
 
-Nix AI Models creates a HuggingFace-compatible cache structure that allows
+Nix Model Repo creates a HuggingFace-compatible cache structure that allows
 seamless integration with the `transformers` library and other HuggingFace tools.
 
 ## How It Works
@@ -21,7 +21,7 @@ The HuggingFace `transformers` library expects models in a specific cache struct
             └── ...
 ```
 
-Nix AI Models creates this exact structure, allowing you to symlink the Nix store
+Nix Model Repo creates this exact structure, allowing you to symlink the Nix store
 path to your HuggingFace cache directory.
 
 ## Basic Integration
@@ -94,7 +94,7 @@ The NixOS module provides system-wide model management:
 ```nix
 # configuration.nix
 {
-  services.ai-models = {
+  services.model-repo = {
     enable = true;
 
     models = {
@@ -127,7 +127,7 @@ For per-user model management:
 ```nix
 # home.nix
 {
-  programs.ai-models = {
+  programs.model-repo = {
     enable = true;
 
     models = {
@@ -259,7 +259,7 @@ The library provides helper functions for common integration tasks:
 
 ```nix
 let
-  integration = nix-ai-models.lib.integration;
+  integration = nix-model-repo.lib.integration;
 in {
   # Generate cache directory name
   cacheName = integration.mkCacheName {

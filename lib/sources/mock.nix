@@ -64,11 +64,11 @@
         '' else ""}
 
         # Write metadata
-        cat > .nix-ai-model-meta.json << EOF
+        cat > .nix-model-repo-meta.json << EOF
         {
           "source": "mock:${org}/${model}@${commitSha}",
           "fetchedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "nixAiModelVersion": "1.0.0",
+          "nixModelRepoVersion": "1.0.0",
           "repository": "${org}/${model}",
           "commit": "${commitSha}",
           "org": "${org}",

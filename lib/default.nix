@@ -1,5 +1,5 @@
 # lib/default.nix
-# Main library exports for nix-ai-models
+# Main library exports for nix-model-repo
 { lib, pkgs }:
 
 let

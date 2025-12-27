@@ -1,13 +1,13 @@
 # CLI Reference
 
-Nix AI Models includes command-line utilities for common operations.
+Nix Model Repo includes command-line utilities for common operations.
 
 ```{note}
 The CLI tools are currently planned for future implementation.
 This documentation describes the intended interface.
 ```
 
-## nix-ai-models
+## nix-model-repo
 
 The main CLI tool for managing AI models.
 
@@ -15,10 +15,10 @@ The main CLI tool for managing AI models.
 
 ```bash
 # Add to your flake
-nix shell github:your-org/nix-ai-models
+nix shell github:your-org/nix-model-repo
 
 # Or install globally
-nix profile install github:your-org/nix-ai-models
+nix profile install github:your-org/nix-model-repo
 ```
 
 ## Commands
@@ -28,7 +28,7 @@ nix profile install github:your-org/nix-ai-models
 Fetch a model and add it to the Nix store.
 
 ```bash
-nix-ai-models fetch [OPTIONS] <SOURCE>
+nix-model-repo fetch [OPTIONS] <SOURCE>
 ```
 
 **Arguments:**
@@ -49,16 +49,16 @@ nix-ai-models fetch [OPTIONS] <SOURCE>
 
 ```bash
 # Fetch from HuggingFace
-nix-ai-models fetch hf:meta-llama/Llama-2-7b-hf
+nix-model-repo fetch hf:meta-llama/Llama-2-7b-hf
 
 # Fetch specific revision
-nix-ai-models fetch hf:meta-llama/Llama-2-7b-hf -r abc123
+nix-model-repo fetch hf:meta-llama/Llama-2-7b-hf -r abc123
 
 # Fetch and link to cache
-nix-ai-models fetch hf:mistralai/Mistral-7B-v0.1 --link
+nix-model-repo fetch hf:mistralai/Mistral-7B-v0.1 --link
 
 # Fetch with minimal validation
-nix-ai-models fetch hf:org/model --validation minimal
+nix-model-repo fetch hf:org/model --validation minimal
 ```
 
 ### hash
@@ -66,7 +66,7 @@ nix-ai-models fetch hf:org/model --validation minimal
 Compute or verify the hash of a model.
 
 ```bash
-nix-ai-models hash [OPTIONS] <SOURCE>
+nix-model-repo hash [OPTIONS] <SOURCE>
 ```
 
 **Options:**
@@ -80,11 +80,11 @@ nix-ai-models hash [OPTIONS] <SOURCE>
 
 ```bash
 # Compute hash for a model
-nix-ai-models hash hf:google-bert/bert-base-uncased
+nix-model-repo hash hf:google-bert/bert-base-uncased
 # Output: sha256-abc123...
 
 # Verify existing hash
-nix-ai-models hash hf:org/model --verify sha256-abc123...
+nix-model-repo hash hf:org/model --verify sha256-abc123...
 ```
 
 ### link
@@ -92,7 +92,7 @@ nix-ai-models hash hf:org/model --verify sha256-abc123...
 Create HuggingFace cache symlinks for fetched models.
 
 ```bash
-nix-ai-models link [OPTIONS] <MODEL_PATH>
+nix-model-repo link [OPTIONS] <MODEL_PATH>
 ```
 
 **Options:**
@@ -107,13 +107,13 @@ nix-ai-models link [OPTIONS] <MODEL_PATH>
 
 ```bash
 # Link a built model
-nix-ai-models link /nix/store/xxx-llama-2-7b
+nix-model-repo link /nix/store/xxx-llama-2-7b
 
 # Link with custom cache location
-nix-ai-models link /nix/store/xxx-model --cache-dir /data/hf-cache
+nix-model-repo link /nix/store/xxx-model --cache-dir /data/hf-cache
 
 # Force overwrite
-nix-ai-models link /nix/store/xxx-model -f
+nix-model-repo link /nix/store/xxx-model -f
 ```
 
 ### list
@@ -121,7 +121,7 @@ nix-ai-models link /nix/store/xxx-model -f
 List available or installed models.
 
 ```bash
-nix-ai-models list [OPTIONS]
+nix-model-repo list [OPTIONS]
 ```
 
 **Options:**
@@ -136,13 +136,13 @@ nix-ai-models list [OPTIONS]
 
 ```bash
 # List all defined models
-nix-ai-models list
+nix-model-repo list
 
 # List installed models as JSON
-nix-ai-models list --installed --format json
+nix-model-repo list --installed --format json
 
 # List linked models
-nix-ai-models list --linked
+nix-model-repo list --linked
 ```
 
 ### info
@@ -150,7 +150,7 @@ nix-ai-models list --linked
 Show information about a model.
 
 ```bash
-nix-ai-models info [OPTIONS] <MODEL>
+nix-model-repo info [OPTIONS] <MODEL>
 ```
 
 **Options:**
@@ -163,10 +163,10 @@ nix-ai-models info [OPTIONS] <MODEL>
 
 ```bash
 # Show model info
-nix-ai-models info hf:meta-llama/Llama-2-7b-hf
+nix-model-repo info hf:meta-llama/Llama-2-7b-hf
 
 # JSON output
-nix-ai-models info hf:org/model --format json
+nix-model-repo info hf:org/model --format json
 ```
 
 ### validate
@@ -174,7 +174,7 @@ nix-ai-models info hf:org/model --format json
 Run validation on an existing model.
 
 ```bash
-nix-ai-models validate [OPTIONS] <MODEL_PATH>
+nix-model-repo validate [OPTIONS] <MODEL_PATH>
 ```
 
 **Options:**
@@ -189,13 +189,13 @@ nix-ai-models validate [OPTIONS] <MODEL_PATH>
 
 ```bash
 # Validate with default settings
-nix-ai-models validate /nix/store/xxx-model
+nix-model-repo validate /nix/store/xxx-model
 
 # Use strict validation
-nix-ai-models validate /nix/store/xxx-model --preset strict
+nix-model-repo validate /nix/store/xxx-model --preset strict
 
 # Run specific validators
-nix-ai-models validate /path --validator no-pickle --validator max-size:10G
+nix-model-repo validate /path --validator no-pickle --validator max-size:10G
 ```
 
 ### clean
@@ -203,7 +203,7 @@ nix-ai-models validate /path --validator no-pickle --validator max-size:10G
 Clean up unused models and cache.
 
 ```bash
-nix-ai-models clean [OPTIONS]
+nix-model-repo clean [OPTIONS]
 ```
 
 **Options:**
@@ -217,10 +217,10 @@ nix-ai-models clean [OPTIONS]
 
 ```bash
 # Clean broken links
-nix-ai-models clean --broken-links
+nix-model-repo clean --broken-links
 
 # Dry run
-nix-ai-models clean --dry-run
+nix-model-repo clean --dry-run
 ```
 
 ## Using with Nix Commands
@@ -231,7 +231,7 @@ You can also use standard Nix commands with the flake:
 
 ```bash
 # Build a pre-defined model
-nix build github:your-org/nix-ai-models#models.x86_64-linux.test.empty
+nix build github:your-org/nix-model-repo#models.x86_64-linux.test.empty
 
 # Build with local flake
 nix build .#llama-2-7b
@@ -265,8 +265,8 @@ The CLI respects these environment variables:
 |----------|-------------|
 | `HF_TOKEN` | HuggingFace authentication token |
 | `HF_HOME` | HuggingFace cache directory (default: `~/.cache/huggingface`) |
-| `NIX_AI_MODELS_CACHE` | Cache directory for CLI operations |
-| `NIX_AI_MODELS_VALIDATION` | Default validation preset |
+| `NIX_MODEL_REPO_CACHE` | Cache directory for CLI operations |
+| `NIX_MODEL_REPO_VALIDATION` | Default validation preset |
 
 ## Shell Completions
 
@@ -274,11 +274,11 @@ Generate shell completions:
 
 ```bash
 # Bash
-nix-ai-models completions bash > ~/.local/share/bash-completion/completions/nix-ai-models
+nix-model-repo completions bash > ~/.local/share/bash-completion/completions/nix-model-repo
 
 # Zsh
-nix-ai-models completions zsh > ~/.zsh/completions/_nix-ai-models
+nix-model-repo completions zsh > ~/.zsh/completions/_nix-model-repo
 
 # Fish
-nix-ai-models completions fish > ~/.config/fish/completions/nix-ai-models.fish
+nix-model-repo completions fish > ~/.config/fish/completions/nix-model-repo.fish
 ```

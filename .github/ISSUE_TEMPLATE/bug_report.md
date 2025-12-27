@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in nix-ai-models
+about: Report a bug in nix-model-repo
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -33,7 +33,7 @@ What actually happened.
 
 - OS: [e.g., NixOS 24.05, Ubuntu 22.04]
 - Nix version: [output of `nix --version`]
-- nix-ai-models version: [e.g., 0.1.0 or commit hash]
+- nix-model-repo version: [e.g., 0.1.0 or commit hash]
 
 ## Additional Context
 

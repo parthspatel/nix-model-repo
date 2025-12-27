@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial implementation of Nix AI Models library
+- Initial implementation of Nix Model Repo library
 - Core `fetchModel` function for reproducible model fetching
 - Source adapters:
   - HuggingFace Hub
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git-Xet source adapter
 - URL source adapter
 - Ollama source adapter
-- CLI tool (`nix-ai-models`)
+- CLI tool (`nix-model-repo`)
 - Full NixOS module implementation
 - Full Home Manager module implementation
 - Binary cache optimization for large models
