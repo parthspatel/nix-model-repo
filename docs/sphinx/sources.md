@@ -91,19 +91,20 @@ fetchModel pkgs {
 }
 ```
 
-## MLFlow Registry
+## MLflow Model Registry
 
-Fetch models from MLFlow Model Registry, commonly used in enterprise environments.
+Fetch models from MLflow Model Registry, commonly used in enterprise environments
+for model versioning, staging, and deployment workflows.
 
 ### Configuration
 
 ```nix
 source.mlflow = {
-  trackingUri = "https://mlflow.example.com";  # Required
-  modelName = "production-model";               # Required
-  version = "3";                                # Required: version number
+  trackingUri = "https://mlflow.example.com";  # Required: MLflow server URL
+  modelName = "production-model";               # Required: registered model name
+  modelVersion = 3;                             # Option 1: specific version number
   # OR
-  stage = "Production";                         # Alternative: stage name
+  modelStage = "Production";                    # Option 2: stage name
 };
 ```
 
@@ -111,27 +112,69 @@ source.mlflow = {
 
 **trackingUri**
 : Type: `string` | Required: Yes
-: URL of the MLFlow tracking server.
+: URL of the MLflow tracking server. Can be:
+  - `https://mlflow.example.com` - Remote server
+  - `http://localhost:5000` - Local development server
+  - `databricks://` - Databricks-hosted MLflow
 
 **modelName**
 : Type: `string` | Required: Yes
-: Name of the registered model.
+: Name of the registered model in the Model Registry.
 
-**version**
-: Type: `string | int` | Required: Yes (unless `stage` is specified)
-: Specific version number to fetch.
+**modelVersion**
+: Type: `int | null` | Required: Yes (unless `modelStage` is specified)
+: Specific version number to fetch. Recommended for reproducibility.
 
-**stage**
-: Type: `string` | Required: Yes (unless `version` is specified)
-: Model stage to fetch (e.g., "Production", "Staging").
+**modelStage**
+: Type: `string | null` | Required: Yes (unless `modelVersion` is specified)
+: Model stage to fetch. Common stages:
+  - `"Production"` - Production-ready models
+  - `"Staging"` - Models being validated
+  - `"Archived"` - Deprecated models
+  - `"None"` - Unassigned models
 
 ### Authentication
 
+MLflow supports multiple authentication methods:
+
+**Bearer Token (recommended for remote servers)**
 ```nix
 auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
 ```
 
-### Example
+Set the environment variable before building:
+```bash
+export MLFLOW_TRACKING_TOKEN="your-token-here"
+```
+
+**Basic Authentication**
+```bash
+export MLFLOW_TRACKING_USERNAME="user"
+export MLFLOW_TRACKING_PASSWORD="password"
+```
+
+**Databricks**
+```bash
+export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export DATABRICKS_TOKEN="your-databricks-token"
+```
+
+### Example: Fetch by Version
+
+```nix
+fetchModel pkgs {
+  name = "fraud-detector-v3";
+  source.mlflow = {
+    trackingUri = "https://mlflow.company.com";
+    modelName = "fraud-detector";
+    modelVersion = 3;
+  };
+  hash = "sha256-...";
+  auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
+}
+```
+
+### Example: Fetch Production Stage
 
 ```nix
 fetchModel pkgs {
@@ -139,12 +182,85 @@ fetchModel pkgs {
   source.mlflow = {
     trackingUri = "https://mlflow.company.com";
     modelName = "fraud-detector";
-    stage = "Production";
+    modelStage = "Production";
   };
   hash = "sha256-...";
   auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
 }
 ```
+
+### Example: Local MLflow Server
+
+```nix
+fetchModel pkgs {
+  name = "local-model";
+  source.mlflow = {
+    trackingUri = "http://localhost:5000";
+    modelName = "my-experiment-model";
+    modelVersion = 1;
+  };
+  hash = "sha256-...";
+  # No auth needed for local server
+}
+```
+
+### Example: Using Source Factory
+
+Create a reusable factory for your MLflow server:
+
+```nix
+let
+  sources = nix-model-repo.lib.sources;
+
+  # Create factory for company MLflow
+  companyMlflow = sources.mkMlflow {
+    trackingUri = "https://mlflow.company.com";
+  };
+in {
+  # Fetch production model
+  fraud-detector = fetchModel pkgs {
+    name = "fraud-detector";
+    source = companyMlflow {
+      modelName = "fraud-detector";
+      stage = "Production";
+    };
+    hash = "sha256-...";
+    auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
+  };
+
+  # Fetch specific version
+  classifier-v5 = fetchModel pkgs {
+    name = "classifier-v5";
+    source = companyMlflow {
+      modelName = "document-classifier";
+      version = 5;
+    };
+    hash = "sha256-...";
+    auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
+  };
+}
+```
+
+### Output Structure
+
+The fetched model includes:
+- All model artifacts from the MLflow run
+- `MLmodel` file (if present) with model metadata
+- `.nix-model-repo-meta.json` with fetch metadata
+
+### Troubleshooting
+
+**401 Unauthorized**
+: Set authentication credentials via environment variables
+
+**404 Not Found**
+: Check that the model name and version/stage exist in the registry
+
+**No version found for stage**
+: Ensure a model version is assigned to the specified stage
+
+**SSL Certificate errors**
+: The fetcher uses system CA certificates. For self-signed certs, you may need to add them to your system trust store
 
 ## S3 Storage
 
