@@ -20,7 +20,8 @@ let
   };
 
   # Run lib.debug.runTests and check for failures
-  runUnitTests = name: tests:
+  runUnitTests =
+    name: tests:
     let
       results = lib.debug.runTests tests;
       failures = lib.filter (r: r ? expected) results;
@@ -31,32 +32,64 @@ let
           Got:      ${builtins.toJSON f.result}
       '';
     in
-      if failureCount > 0 then
-        throw ''
-          ${toString failureCount} test(s) failed in ${name}:
-          ${lib.concatMapStringsSep "\n" formatFailure failures}
-        ''
-      else
-        results;
+    if failureCount > 0 then
+      throw ''
+        ${toString failureCount} test(s) failed in ${name}:
+        ${lib.concatMapStringsSep "\n" formatFailure failures}
+      ''
+    else
+      results;
 
   # Derivation that runs all unit tests
-  unitTestRunner = pkgs.runCommand "unit-tests" {
-    nativeBuildInputs = [ pkgs.jq ];
-  } ''
-    echo "Running unit tests..."
+  unitTestRunner =
+    pkgs.runCommand "unit-tests"
+      {
+        nativeBuildInputs = [ pkgs.jq ];
+      }
+      ''
+        echo "Running unit tests..."
 
-    # Force evaluation of all tests (will fail build if tests fail)
-    ${lib.concatMapStringsSep "\n" (name: ''
-      echo "  Testing ${name}..."
-    '') (lib.attrNames allUnitTests)}
+        # Force evaluation of all tests (will fail build if tests fail)
+        ${lib.concatMapStringsSep "\n" (name: ''
+          echo "  Testing ${name}..."
+        '') (lib.attrNames allUnitTests)}
 
+        echo "All unit tests passed!"
+        echo "${builtins.toJSON (lib.mapAttrs (name: _: "passed") allUnitTests)}" > $out
+      '';
+
+  # Individual check derivations (defined in let block to avoid self-reference in checks)
+  unitTestsCheck = pkgs.runCommand "nix-model-repo-unit-tests" { } ''
+    echo "=== Unit Tests ==="
+    ${lib.concatMapStringsSep "\n" (
+      name:
+      let
+        tests = allUnitTests.${name};
+      in
+      ''
+        echo "Testing ${name}..."
+        # Force evaluation
+        : ${builtins.toJSON (runUnitTests name tests)}
+        echo "  ✓ ${name} passed"
+      ''
+    ) (lib.attrNames allUnitTests)}
+    echo ""
     echo "All unit tests passed!"
-    echo "${builtins.toJSON (lib.mapAttrs (name: _: "passed") allUnitTests)}" > $out
+    touch $out
   '';
 
-in {
+  integrationTestsCheck = integrationTests.check;
+
+in
+{
   # Individual test modules
-  inherit typeTests validationTests sourceTests integrationTests versionTests;
+  inherit
+    typeTests
+    validationTests
+    sourceTests
+    integrationTests
+    versionTests
+    ;
 
   # All unit tests (for evaluation)
   inherit allUnitTests;
@@ -64,36 +97,27 @@ in {
   # Derivations for CI
   checks = {
     # Unit tests (pure Nix evaluation)
-    unit-tests = pkgs.runCommand "nix-model-repo-unit-tests" {} ''
-      echo "=== Unit Tests ==="
-      ${lib.concatMapStringsSep "\n" (name:
-        let tests = allUnitTests.${name};
-        in ''
-          echo "Testing ${name}..."
-          # Force evaluation
-          : ${builtins.toJSON (runUnitTests name tests)}
-          echo "  ✓ ${name} passed"
-        ''
-      ) (lib.attrNames allUnitTests)}
-      echo ""
-      echo "All unit tests passed!"
-      touch $out
-    '';
+    unit-tests = unitTestsCheck;
 
     # Integration tests
-    integration-tests = integrationTests.check;
+    integration-tests = integrationTestsCheck;
 
     # All tests combined
-    all = pkgs.runCommand "nix-model-repo-all-tests" {
-      unitTests = allUnitTests;
-    } ''
-      echo "=== Running All Tests ==="
-      echo ""
-      echo "Unit tests: evaluated at build time"
-      echo "Integration tests: see integration-tests check"
-      echo ""
-      echo "All tests passed!"
-      touch $out
-    '';
+    all =
+      pkgs.runCommand "nix-model-repo-all-tests"
+        {
+          # Reference the test derivations to ensure they run
+          unitTests = unitTestsCheck;
+          integrationTests = integrationTestsCheck;
+        }
+        ''
+          echo "=== Running All Tests ==="
+          echo ""
+          echo "Unit tests: $unitTests"
+          echo "Integration tests: $integrationTests"
+          echo ""
+          echo "All tests passed!"
+          touch $out
+        '';
   };
 }

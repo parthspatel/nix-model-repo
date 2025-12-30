@@ -9,11 +9,17 @@ let
   # Mock source for testing
   mockSource = import ../lib/sources/mock.nix { inherit lib pkgs; };
 
-in {
+in
+{
   unitTests = {
     # Test: factories exist
-    testMkHuggingFaceExists = {
-      expr = factories ? mkHuggingFace;
+    testHuggingFaceExists = {
+      expr = factories ? huggingface;
+      expected = true;
+    };
+
+    testHuggingFaceMkExists = {
+      expr = factories.huggingface ? mk;
       expected = true;
     };
 
@@ -33,8 +39,8 @@ in {
     };
 
     # Test: factories are functions
-    testMkHuggingFaceIsFunction = {
-      expr = lib.isFunction factories.mkHuggingFace;
+    testHuggingFaceMkIsFunction = {
+      expr = lib.isFunction factories.huggingface.mk;
       expected = true;
     };
 
@@ -60,45 +66,66 @@ in {
     };
 
     testMockValidateConfigEmpty = {
-      expr = (mockSource.validateConfig {}).valid;
+      expr = (mockSource.validateConfig { }).valid;
       expected = true;
     };
 
     testMockValidateConfigWithFiles = {
-      expr = (mockSource.validateConfig { files = ["config.json"]; }).valid;
+      expr = (mockSource.validateConfig { files = [ "config.json" ]; }).valid;
       expected = true;
     };
 
     # Test: factory produces valid source config
-    testMkHuggingFaceProducesConfig = {
-      expr = let
-        hf = factories.mkHuggingFace {};
-        config = hf "org/model";
-      in config ? huggingface;
+    testHuggingFaceMkProducesConfig = {
+      expr =
+        let
+          config = factories.huggingface.mk { repo = "org/model"; };
+        in
+        config ? huggingface;
       expected = true;
     };
 
-    testMkHuggingFaceConfigHasRepo = {
-      expr = let
-        hf = factories.mkHuggingFace {};
-        config = hf "org/model";
-      in config.huggingface.repo;
+    testHuggingFaceMkConfigHasRepo = {
+      expr =
+        let
+          config = factories.huggingface.mk { repo = "org/model"; };
+        in
+        config.huggingface.repo;
       expected = "org/model";
     };
 
+    testHuggingFaceOrgFactory = {
+      expr =
+        let
+          config = factories.huggingface.org "myorg" "mymodel";
+        in
+        config.huggingface.repo;
+      expected = "myorg/mymodel";
+    };
+
     testMkS3ProducesConfig = {
-      expr = let
-        s3 = factories.mkS3 { bucket = "test-bucket"; };
-        config = s3 "prefix/";
-      in config ? s3;
+      expr =
+        let
+          s3 = factories.mkS3 {
+            bucket = "test-bucket";
+            region = "us-east-1";
+          };
+          config = s3 { prefix = "models/"; };
+        in
+        config ? s3;
       expected = true;
     };
 
     testMkS3ConfigHasBucket = {
-      expr = let
-        s3 = factories.mkS3 { bucket = "test-bucket"; };
-        config = s3 "prefix/";
-      in config.s3.bucket;
+      expr =
+        let
+          s3 = factories.mkS3 {
+            bucket = "test-bucket";
+            region = "us-east-1";
+          };
+          config = s3 { prefix = "models/"; };
+        in
+        config.s3.bucket;
       expected = "test-bucket";
     };
   };
