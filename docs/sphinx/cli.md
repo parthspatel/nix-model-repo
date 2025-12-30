@@ -15,10 +15,10 @@ The main CLI tool for managing AI models.
 
 ```bash
 # Add to your flake
-nix shell github:your-org/nix-model-repo
+nix shell github:parthspatel/nix-model-repo
 
 # Or install globally
-nix profile install github:your-org/nix-model-repo
+nix profile install github:parthspatel/nix-model-repo
 ```
 
 ## Commands
@@ -231,7 +231,7 @@ You can also use standard Nix commands with the flake:
 
 ```bash
 # Build a pre-defined model
-nix build github:your-org/nix-model-repo#models.x86_64-linux.test.empty
+nix build github:parthspatel/nix-model-repo#models.x86_64-linux.test.empty
 
 # Build with local flake
 nix build .#llama-2-7b

@@ -12,7 +12,7 @@ Add nix-model-repo as an input in your `devenv.yaml`:
 ```yaml
 inputs:
   nix-model-repo:
-    url: github:your-org/nix-model-repo
+    url: github:parthspatel/nix-model-repo
 ```
 
 Then import the module in your `devenv.nix`:
@@ -47,7 +47,7 @@ If you're using devenv with flakes:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, devenv, nix-model-repo, ... }@inputs:

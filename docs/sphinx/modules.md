@@ -15,7 +15,7 @@ Add to your flake:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { nixpkgs, nix-model-repo, ... }: {
@@ -158,7 +158,7 @@ Add to your home-manager configuration:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { nixpkgs, home-manager, nix-model-repo, ... }: {

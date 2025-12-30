@@ -13,7 +13,7 @@ Thank you for your interest in contributing to Nix Model Repo!
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/nix-model-repo.git
+git clone https://github.com/parthspatel/nix-model-repo.git
 cd nix-model-repo
 
 # Enter development shell

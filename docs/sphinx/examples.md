@@ -27,7 +27,7 @@ A minimal flake that fetches a single model:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
@@ -56,7 +56,7 @@ A flake with multiple models for different purposes:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
@@ -103,7 +103,7 @@ A flake with models and a development shell:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -178,7 +178,7 @@ A flake for production deployment with strict validation:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
@@ -264,7 +264,7 @@ A flake using models from different sources:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
@@ -342,7 +342,7 @@ A flake demonstrating different validation configurations:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
@@ -434,7 +434,7 @@ A complete NixOS configuration with AI models:
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }: {
@@ -513,7 +513,7 @@ A Home Manager configuration with AI models:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, home-manager, nix-model-repo, ... }: {
@@ -581,7 +581,7 @@ A [devenv](https://devenv.sh) configuration with AI models. See the full [Devenv
 ```yaml
 inputs:
   nix-model-repo:
-    url: github:your-org/nix-model-repo
+    url: github:parthspatel/nix-model-repo
 ```
 
 **devenv.nix:**
@@ -742,7 +742,7 @@ Using devenv with a flake for more control:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   nixConfig = {

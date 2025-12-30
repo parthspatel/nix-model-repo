@@ -30,7 +30,7 @@ llama = nix-model-repo.lib.fetchModel pkgs {
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { nixpkgs, nix-model-repo, ... }:

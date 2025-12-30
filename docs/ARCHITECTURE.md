@@ -1411,7 +1411,7 @@ cmd_prefetch() {
     local result
     result=$(nix build --impure --expr "
       let
-        flake = builtins.getFlake \"github:your-org/nix-model-repo\";
+        flake = builtins.getFlake \"github:parthspatel/nix-model-repo\";
         pkgs = import <nixpkgs> {};
       in
         flake.lib.fetchModel {
@@ -1576,7 +1576,7 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
   │      export HF_TOKEN=your_token_here
   │   5. Retry the build
   │
-  └─ For more help: https://github.com/your-org/nix-model-repo/wiki/Gated-Models
+  └─ For more help: https://github.com/parthspatel/nix-model-repo/wiki/Gated-Models
 ```
 
 ### 13.3 Error Handling Implementation
@@ -2645,7 +2645,7 @@ in {
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nix-model-repo.url = "github:your-org/nix-model-repo";
+    nix-model-repo.url = "github:parthspatel/nix-model-repo";
   };
 
   outputs = { self, nixpkgs, nix-model-repo, ... }:
