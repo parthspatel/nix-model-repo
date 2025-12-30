@@ -102,7 +102,7 @@ If you're using devenv with flakes:
 }
 ```
 
-### Options Reference
+### Full Options Reference
 
 #### `services.model-repo.enable`
 
@@ -118,19 +118,23 @@ Enable AI model management.
 
 Attribute set of models to fetch. Each model has:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `source` | `attrs` | Source configuration (huggingface, s3, etc.) |
-| `hash` | `string` | SHA256 hash in SRI format |
-| `validation` | `attrs` | Optional validation settings |
-| `auth` | `attrs` | Optional authentication |
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `name` | `string` | No | Model name (defaults to attribute name) |
+| `source` | `attrs` | Yes | Source configuration (huggingface, s3, etc.) |
+| `hash` | `string` | Yes | SHA256 hash in SRI format |
+| `validation` | `attrs` | No | Validation settings |
+| `integration` | `attrs` | No | Integration settings |
+| `network` | `attrs` | No | Network settings (timeouts, retries) |
+| `auth` | `attrs` | No | Authentication configuration |
+| `meta` | `attrs` | No | Metadata |
 
 #### `services.model-repo.cacheDir`
 
 - **Type:** `string`
 - **Default:** `".devenv/model-repo"`
 
-Directory for HuggingFace cache symlinks.
+Directory for HuggingFace cache symlinks (relative to project root).
 
 #### `services.model-repo.linkToHuggingFace`
 
@@ -146,16 +150,32 @@ Create symlinks in HuggingFace cache directory structure.
 
 Set `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` after models are linked.
 
+#### `services.model-repo.globalValidation`
+
+- **Type:** `attrs`
+- **Default:** `{}`
+
+Default validation settings applied to all models.
+
+#### `services.model-repo.globalNetwork`
+
+- **Type:** `attrs`
+- **Default:** `{}`
+
+Default network settings applied to all models.
+
 ## Environment Variables
 
 When enabled, the module sets:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `MODEL_REPO_<NAME>` | Store path | Path to each model (uppercase name) |
-| `HF_HOME` | Cache dir | HuggingFace cache directory |
-| `HF_HUB_OFFLINE` | `1` | Prevent downloads (if offlineMode) |
-| `TRANSFORMERS_OFFLINE` | `1` | Prevent downloads (if offlineMode) |
+| `MODEL_REPO_<NAME>` | Store path | Path to each model (uppercase name, dashes become underscores) |
+| `HF_HOME` | Cache dir | HuggingFace cache directory (set in enterShell) |
+| `HF_HUB_OFFLINE` | `1` | Prevent downloads (if offlineMode enabled) |
+| `TRANSFORMERS_OFFLINE` | `1` | Prevent downloads (if offlineMode enabled) |
+
+Example: A model named `bert-base` will have environment variable `MODEL_REPO_BERT_BASE`.
 
 ## Full Example
 
@@ -189,6 +209,16 @@ When enabled, the module sets:
         source.huggingface.repo = "openai-community/gpt2";
         hash = "sha256-...";
       };
+
+      # Non-HuggingFace source example
+      custom-model = {
+        source.s3 = {
+          bucket = "my-models";
+          prefix = "custom/";
+          region = "us-east-1";
+        };
+        hash = "sha256-...";
+      };
     };
 
     # Custom cache location
@@ -200,8 +230,8 @@ When enabled, the module sets:
 
   # Install transformers
   packages = [
-    (pkgs.python311Packages.transformers)
-    (pkgs.python311Packages.torch)
+    pkgs.python311Packages.transformers
+    pkgs.python311Packages.torch
   ];
 
   # Custom script
@@ -215,9 +245,35 @@ When enabled, the module sets:
 
   enterShell = ''
     echo "ML Development Environment"
-    echo "Models: bert, gpt2"
+    echo "Models: bert, gpt2, custom-model"
     echo ""
     echo "Try: test-model"
+  '';
+}
+```
+
+## Using Model Paths
+
+Access model paths via environment variables in your scripts:
+
+```nix
+# devenv.nix
+{ pkgs, lib, inputs, ... }:
+
+{
+  imports = [ inputs.nix-model-repo.devenvModules.default ];
+
+  services.model-repo = {
+    enable = true;
+    models.bert = {
+      source.huggingface.repo = "google-bert/bert-base-uncased";
+      hash = "sha256-...";
+    };
+  };
+
+  scripts.use-model.exec = ''
+    echo "BERT model path: $MODEL_REPO_BERT"
+    python my_script.py --model-path "$MODEL_REPO_BERT"
   '';
 }
 ```
@@ -252,6 +308,60 @@ in {
 }
 ```
 
+## Source Types
+
+The module supports all source types from nix-model-repo:
+
+### HuggingFace
+
+```nix
+models.llama = {
+  source.huggingface = {
+    repo = "meta-llama/Llama-2-7b-hf";
+    revision = "main";  # Optional, defaults to main
+    files = [ "config.json" "*.safetensors" ];  # Optional, download specific files
+  };
+  hash = "sha256-...";
+};
+```
+
+### S3
+
+```nix
+models.custom = {
+  source.s3 = {
+    bucket = "my-bucket";
+    prefix = "models/my-model/";
+    region = "us-east-1";
+  };
+  hash = "sha256-...";
+  auth.awsProfile = "my-profile";  # Optional
+};
+```
+
+### Git LFS
+
+```nix
+models.my-model = {
+  source.git-lfs = {
+    url = "https://github.com/org/model-repo.git";
+    rev = "abc123...";
+  };
+  hash = "sha256-...";
+};
+```
+
+### Direct URL
+
+```nix
+models.weights = {
+  source.url = {
+    urls = [ "https://example.com/model.bin" ];
+  };
+  hash = "sha256-...";
+};
+```
+
 ## Troubleshooting
 
 ### Model Not Found After Shell Entry
@@ -262,28 +372,38 @@ Ensure the symlinks are created correctly:
 ls -la .devenv/model-repo/
 ```
 
-### Hash Mismatch
-
-Update the hash in your configuration:
+Check that HF_HOME is set:
 
 ```bash
-# Build will fail with correct hash
-devenv shell
-# Copy the "got: sha256-..." from the error
+echo $HF_HOME
 ```
+
+### Hash Mismatch
+
+Update the hash in your configuration. The build will fail with the correct hash:
+
+```bash
+devenv shell
+# error: hash mismatch in fixed-output derivation
+#   specified: sha256-old...
+#   got:       sha256-NEW_HASH_HERE...
+```
+
+Copy the `got:` hash to your configuration.
 
 ### Authentication for Gated Models
 
-Set your HuggingFace token:
+Set your HuggingFace token before entering the shell:
 
 ```bash
 export HF_TOKEN="hf_..."
 devenv shell
 ```
 
-Or use a `.envrc` file:
+Or use a `.envrc` file with direnv:
 
 ```bash
+# .envrc
 export HF_TOKEN="hf_..."
 ```
 
@@ -295,8 +415,24 @@ If you need to download new models, temporarily disable offline mode:
 services.model-repo.offlineMode = false;
 ```
 
-Or manually:
+Or manually in your shell:
 
 ```bash
 unset HF_HUB_OFFLINE TRANSFORMERS_OFFLINE
+```
+
+### Slow First Build
+
+The first build downloads and validates models, which can take time for large models.
+Subsequent builds use the Nix store cache and are instant.
+
+Consider using a binary cache for your team:
+
+```nix
+# devenv.nix
+{
+  cachix.enable = true;
+  cachix.pull = [ "my-team-cache" ];
+  cachix.push = "my-team-cache";
+}
 ```

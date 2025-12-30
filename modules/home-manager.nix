@@ -111,21 +111,26 @@ let
       model = lib.elemAt parts 1;
     };
 
+  # Get HuggingFace models only
+  hfModels = lib.filterAttrs (_: m: m.source ? huggingface) cfg.models;
+
+  # Effective cache directory
+  effectiveCacheDir =
+    if cfg.integration.huggingface.cacheDir != null then
+      cfg.integration.huggingface.cacheDir
+    else
+      "${config.xdg.cacheHome}/huggingface";
+
   # Generate setup script for HuggingFace cache symlinks
   mkHfSetupScript =
-    models:
     let
-      hfModels = lib.filterAttrs (
-        _: m: m.source ? huggingface || (m.integration.huggingface.enable or false)
-      ) models;
-
       setupCommands = lib.concatStringsSep "\n" (
         lib.mapAttrsToList (
           name: modelCfg:
           let
             drv = modelDerivations.${name};
             parsed = parseHfRepo modelCfg.source.huggingface.repo;
-            linkPath = "$HF_HOME/hub/models--${parsed.org}--${parsed.model}";
+            linkPath = "${effectiveCacheDir}/hub/models--${parsed.org}--${parsed.model}";
           in
           ''
             # Setup ${name}
@@ -145,8 +150,7 @@ let
     in
     pkgs.writeShellScript "setup-hf-models" ''
       set -euo pipefail
-      export HF_HOME="''${HF_HOME:-$HOME/.cache/huggingface}"
-      mkdir -p "$HF_HOME/hub"
+      mkdir -p "${effectiveCacheDir}/hub"
       ${setupCommands}
     '';
 
@@ -176,13 +180,13 @@ in
         cacheDir = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = null;
-          description = "Custom HuggingFace cache directory (defaults to ~/.cache/huggingface)";
+          description = "Custom HuggingFace cache directory (defaults to $XDG_CACHE_HOME/huggingface)";
         };
 
         offlineMode = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Enable offline mode environment variables";
+          description = "Enable offline mode environment variables (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE)";
         };
 
         setupOnActivation = lib.mkOption {
@@ -204,9 +208,20 @@ in
       default = { };
       description = "Default network settings applied to all models";
     };
+
+    # Read-only: expose model paths for use in other configs
+    modelPaths = lib.mkOption {
+      type = lib.types.attrsOf lib.types.package;
+      default = { };
+      readOnly = true;
+      description = "Attribute set of model names to their store paths (read-only)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
+    # Expose model paths for use in other configuration
+    programs.model-repo.modelPaths = modelDerivations;
+
     # Add model derivations to user packages (ensures they're built)
     home.packages = lib.attrValues modelDerivations;
 
@@ -216,20 +231,23 @@ in
         (
           cfg.integration.huggingface.enable
           && cfg.integration.huggingface.setupOnActivation
-          && cfg.models != { }
+          && hfModels != { }
         )
         (
           lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            run ${mkHfSetupScript cfg.models}
+            run ${mkHfSetupScript}
           ''
         );
 
-    # Set environment variables for offline mode
-    home.sessionVariables =
-      lib.mkIf (cfg.integration.huggingface.enable && cfg.integration.huggingface.offlineMode)
-        {
-          HF_HUB_OFFLINE = "1";
-          TRANSFORMERS_OFFLINE = "1";
-        };
+    # Set environment variables for HuggingFace
+    home.sessionVariables = lib.mkMerge [
+      (lib.mkIf (cfg.integration.huggingface.enable && cfg.integration.huggingface.cacheDir != null) {
+        HF_HOME = cfg.integration.huggingface.cacheDir;
+      })
+      (lib.mkIf (cfg.integration.huggingface.enable && cfg.integration.huggingface.offlineMode) {
+        HF_HUB_OFFLINE = "1";
+        TRANSFORMERS_OFFLINE = "1";
+      })
+    ];
   };
 }

@@ -463,34 +463,42 @@ A complete NixOS configuration with AI models:
 
             integration.huggingface = {
               enable = true;
-              cacheDir = "/var/lib/model-repo/cache";
+              cacheDir = "/var/cache/huggingface";
             };
+
+            # Group for model access (createGroup = true by default)
+            group = "model-repo";
 
             auth.tokenFile = "/run/secrets/hf-token";
           };
 
-          # Users who can access models
-          users.groups.model-repo = {};
+          # Add inference user to model-repo group
           users.users.inference = {
             isSystemUser = true;
-            group = "model-repo";
+            group = "inference";
+            extraGroups = [ "model-repo" ];
           };
+          users.groups.inference = {};
 
           # Inference service example
           systemd.services.inference-api = {
             description = "AI Inference API";
             after = [ "model-repo.service" "network.target" ];
+            requires = [ "model-repo.service" ];
             wantedBy = [ "multi-user.target" ];
 
             environment = {
-              HF_HOME = "/var/lib/model-repo/cache";
+              HF_HOME = "/var/cache/huggingface";
               HF_HUB_OFFLINE = "1";
+              # Access model paths via config
+              LLAMA_MODEL = "${config.services.model-repo.modelPaths.llama-2-7b}";
+              EMBED_MODEL = "${config.services.model-repo.modelPaths.embeddings}";
             };
 
             serviceConfig = {
               Type = "simple";
               User = "inference";
-              Group = "model-repo";
+              Group = "inference";
               ExecStart = "${pkgs.python3}/bin/python -m my_inference_server";
             };
           };
@@ -539,7 +547,10 @@ A Home Manager configuration with AI models:
                 hash = "sha256-...";
               };
             };
-            integration.huggingface.enable = true;
+            integration.huggingface = {
+              enable = true;
+              offlineMode = true;  # Sets HF_HUB_OFFLINE=1
+            };
           };
 
           # Development packages
@@ -551,6 +562,11 @@ A Home Manager configuration with AI models:
             ]))
           ];
 
+          # Access model paths in other config
+          home.sessionVariables = {
+            BERT_PATH = "${config.programs.model-repo.modelPaths.bert}";
+          };
+
           # Shell configuration
           programs.zsh = {
             enable = true;
@@ -558,11 +574,6 @@ A Home Manager configuration with AI models:
               ml-offline = "export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1";
               ml-online = "unset HF_HUB_OFFLINE TRANSFORMERS_OFFLINE";
             };
-          };
-
-          # Environment variables
-          home.sessionVariables = {
-            HF_HUB_OFFLINE = "1";
           };
         })
       ];

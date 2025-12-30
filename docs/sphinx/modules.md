@@ -65,30 +65,39 @@ services.model-repo = {
   # Model definitions
   models = {
     <name> = {
-      source = { ... };           # Source configuration
-      hash = "sha256-...";        # Model hash
-      validation = { ... };       # Optional validation settings
+      name = "<name>";              # Optional, defaults to attr name
+      source = { ... };             # Source configuration (required)
+      hash = "sha256-...";          # Model hash (required)
+      validation = { ... };         # Optional validation settings
+      integration = { ... };        # Optional integration settings
+      network = { ... };            # Optional network settings
+      auth = { ... };               # Optional authentication
+      meta = { ... };               # Optional metadata
     };
   };
 
   # HuggingFace integration
   integration.huggingface = {
-    enable = true;                # Create HF cache structure
-    cacheDir = "/var/cache/huggingface/hub";  # Cache location
+    enable = true;                  # Create HF cache structure (default: true)
+    cacheDir = "/var/cache/huggingface";  # Cache location
   };
 
-  # Default validation settings
-  validation = {
-    preset = "standard";          # Default preset for all models
-  };
+  # User/group ownership
+  user = "root";                    # User that owns the cache (default: root)
+  group = "model-repo";             # Group with read access (default: model-repo)
+  createGroup = true;               # Create the group (default: true)
 
   # Authentication (for gated models)
   auth = {
     tokenFile = "/run/secrets/hf-token";  # Path to token file
   };
 
-  # Users/groups with access
-  group = "model-repo";            # Group with read access
+  # Default settings for all models
+  globalValidation = { ... };       # Default validation settings
+  globalNetwork = { ... };          # Default network settings
+
+  # Read-only: access model paths
+  # modelPaths.<name> gives the store path
 };
 ```
 
@@ -96,9 +105,9 @@ services.model-repo = {
 
 The module creates a systemd service that:
 
-1. Builds all configured models
-2. Creates HuggingFace cache symlinks
-3. Sets up proper permissions
+1. Creates the HuggingFace cache directory structure
+2. Symlinks all configured models
+3. Sets up proper permissions for the configured group
 
 ```nix
 {
@@ -110,11 +119,22 @@ The module creates a systemd service that:
   # Use in other services
   systemd.services.my-inference = {
     after = [ "model-repo.service" ];
+    requires = [ "model-repo.service" ];
+
     environment = {
       HF_HOME = "/var/cache/huggingface";
       HF_HUB_OFFLINE = "1";
+      MODEL_PATH = "${config.services.model-repo.modelPaths.llama}";
+    };
+
+    serviceConfig = {
+      User = "inference";
+      Group = "model-repo";  # Add to model-repo group for access
     };
   };
+
+  # Add user to model-repo group
+  users.users.inference.extraGroups = [ "model-repo" ];
 }
 ```
 
@@ -132,13 +152,13 @@ Make models available in NixOS containers:
   containers.inference = {
     bindMounts = {
       "/models" = {
-        hostPath = config.services.model-repo.modelPaths.llama;
+        hostPath = "${config.services.model-repo.modelPaths.llama}";
         isReadOnly = true;
       };
     };
 
     config = { ... }: {
-      environment.variables.HF_HOME = "/models";
+      environment.variables.MODEL_PATH = "/models";
     };
   };
 }
@@ -170,6 +190,19 @@ Add to your home-manager configuration:
       ];
     };
   };
+}
+```
+
+### For nix-darwin Users
+
+When using nix-darwin with home-manager, add the module to `home-manager.sharedModules`:
+
+```nix
+# flake.nix or darwin configuration
+{
+  home-manager.sharedModules = [
+    nix-model-repo.homeManagerModules.default
+  ];
 }
 ```
 
@@ -206,32 +239,31 @@ programs.model-repo = {
   # Model definitions
   models = {
     <name> = {
-      source = { ... };
-      hash = "sha256-...";
-      validation = { ... };
+      name = "<name>";              # Optional, defaults to attr name
+      source = { ... };             # Source configuration (required)
+      hash = "sha256-...";          # Model hash (required)
+      validation = { ... };         # Optional validation settings
+      integration = { ... };        # Optional integration settings
+      network = { ... };            # Optional network settings
+      auth = { ... };               # Optional authentication
+      meta = { ... };               # Optional metadata
     };
   };
 
   # HuggingFace integration
   integration.huggingface = {
-    enable = true;
-    cacheDir = "${config.xdg.cacheHome}/huggingface/hub";
+    enable = false;                 # Enable HF cache integration
+    cacheDir = null;                # Custom cache dir (default: $XDG_CACHE_HOME/huggingface)
+    offlineMode = true;             # Set HF_HUB_OFFLINE=1 (default: true)
+    setupOnActivation = true;       # Setup symlinks on activation (default: true)
   };
 
-  # Default validation
-  validation.preset = "standard";
+  # Default settings for all models
+  globalValidation = { ... };       # Default validation settings
+  globalNetwork = { ... };          # Default network settings
 
-  # Authentication
-  auth = {
-    tokenEnvVar = "HF_TOKEN";       # Environment variable
-    # OR
-    tokenFile = "~/.config/huggingface/token";  # File path
-  };
-
-  # Session variables
-  sessionVariables = {
-    HF_HUB_OFFLINE = "1";           # Additional env vars
-  };
+  # Read-only: access model paths
+  # modelPaths.<name> gives the store path
 };
 ```
 
@@ -239,9 +271,33 @@ programs.model-repo = {
 
 Home Manager creates an activation script that:
 
-1. Symlinks models to the HuggingFace cache
-2. Sets up environment variables
-3. Cleans up stale links
+1. Creates the HuggingFace cache directory
+2. Symlinks all HuggingFace models to the cache
+3. Sets up environment variables (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE)
+
+### Using Model Paths
+
+Access model paths in other parts of your configuration:
+
+```nix
+{ config, pkgs, ... }:
+
+{
+  programs.model-repo = {
+    enable = true;
+    models.bert = {
+      source.huggingface.repo = "google-bert/bert-base-uncased";
+      hash = "sha256-...";
+    };
+    integration.huggingface.enable = true;
+  };
+
+  # Use the model path elsewhere
+  home.sessionVariables = {
+    BERT_MODEL_PATH = "${config.programs.model-repo.modelPaths.bert}";
+  };
+}
+```
 
 ### Development Environment
 
@@ -253,7 +309,11 @@ Combine with development shells:
 {
   programs.model-repo = {
     enable = true;
-    models.bert = { ... };
+    models.bert = {
+      source.huggingface.repo = "google-bert/bert-base-uncased";
+      hash = "sha256-...";
+    };
+    integration.huggingface.enable = true;
   };
 
   # Python development with models
@@ -263,26 +323,21 @@ Combine with development shells:
       ps.torch
     ]))
   ];
-
-  # Environment setup
-  home.sessionVariables = {
-    HF_HUB_OFFLINE = "1";
-    TRANSFORMERS_OFFLINE = "1";
-  };
 }
 ```
 
 ## Example Configurations
 
-### Production Server
+### Production Server (NixOS)
 
 ```nix
 # NixOS configuration for an inference server
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   services.model-repo = {
     enable = true;
+    group = "inference";
 
     models = {
       llama-2-70b = {
@@ -297,7 +352,6 @@ Combine with development shells:
                     (lib.range 1 15));
         };
         hash = "sha256-...";
-        validation = nix-model-repo.lib.validation.presets.strict;
       };
     };
 
@@ -308,6 +362,7 @@ Combine with development shells:
   # Inference service
   systemd.services.vllm = {
     after = [ "model-repo.service" ];
+    requires = [ "model-repo.service" ];
     wantedBy = [ "multi-user.target" ];
 
     environment = {
@@ -318,13 +373,19 @@ Combine with development shells:
     serviceConfig = {
       ExecStart = "${pkgs.vllm}/bin/vllm serve meta-llama/Llama-2-70b-chat-hf";
       User = "vllm";
-      Group = "model-repo";
+      Group = "inference";
     };
   };
+
+  users.users.vllm = {
+    isSystemUser = true;
+    group = "inference";
+  };
+  users.groups.inference = {};
 }
 ```
 
-### Development Workstation
+### Development Workstation (Home Manager)
 
 ```nix
 # Home Manager for ML developer
@@ -339,7 +400,6 @@ Combine with development shells:
       bert-tiny = {
         source.huggingface.repo = "prajjwal1/bert-tiny";
         hash = "sha256-...";
-        validation.preset = "minimal";
       };
 
       # Production model for testing
@@ -349,8 +409,10 @@ Combine with development shells:
       };
     };
 
-    integration.huggingface.enable = true;
-    auth.tokenEnvVar = "HF_TOKEN";
+    integration.huggingface = {
+      enable = true;
+      offlineMode = true;
+    };
   };
 
   # Development tools
@@ -369,45 +431,47 @@ Combine with development shells:
 }
 ```
 
-### Multi-Model Pipeline
+### Multi-Model Pipeline (NixOS)
 
 ```nix
 # Configuration for a multi-model pipeline
 { config, lib, pkgs, ... }:
 
-let
-  models = {
-    embedding = {
-      source.huggingface.repo = "sentence-transformers/all-MiniLM-L6-v2";
-      hash = "sha256-...";
-    };
-    reranker = {
-      source.huggingface.repo = "cross-encoder/ms-marco-MiniLM-L-6-v2";
-      hash = "sha256-...";
-    };
-    generator = {
-      source.huggingface.repo = "mistralai/Mistral-7B-Instruct-v0.1";
-      hash = "sha256-...";
-    };
-  };
-in {
+{
   services.model-repo = {
     enable = true;
-    inherit models;
+
+    models = {
+      embedding = {
+        source.huggingface.repo = "sentence-transformers/all-MiniLM-L6-v2";
+        hash = "sha256-...";
+      };
+      reranker = {
+        source.huggingface.repo = "cross-encoder/ms-marco-MiniLM-L-6-v2";
+        hash = "sha256-...";
+      };
+      generator = {
+        source.huggingface.repo = "mistralai/Mistral-7B-Instruct-v0.1";
+        hash = "sha256-...";
+      };
+    };
   };
 
   # Each stage of the pipeline
   systemd.services = {
     embedding-service = {
-      environment.MODEL_PATH = config.services.model-repo.modelPaths.embedding;
+      after = [ "model-repo.service" ];
+      environment.MODEL_PATH = "${config.services.model-repo.modelPaths.embedding}";
       # ...
     };
     reranker-service = {
-      environment.MODEL_PATH = config.services.model-repo.modelPaths.reranker;
+      after = [ "model-repo.service" ];
+      environment.MODEL_PATH = "${config.services.model-repo.modelPaths.reranker}";
       # ...
     };
     generator-service = {
-      environment.MODEL_PATH = config.services.model-repo.modelPaths.generator;
+      after = [ "model-repo.service" ];
+      environment.MODEL_PATH = "${config.services.model-repo.modelPaths.generator}";
       # ...
     };
   };
@@ -421,11 +485,31 @@ in {
 Ensure the module is added to your configuration:
 
 ```nix
+# For NixOS
 modules = [
-  nix-model-repo.nixosModules.default  # or homeManagerModules.default
+  nix-model-repo.nixosModules.default
   ./your-config.nix
 ];
+
+# For Home Manager (standalone)
+modules = [
+  nix-model-repo.homeManagerModules.default
+  ./home.nix
+];
+
+# For Home Manager (with nix-darwin)
+home-manager.sharedModules = [
+  nix-model-repo.homeManagerModules.default
+];
 ```
+
+### Option Does Not Exist
+
+If you see errors like `The option 'programs.model-repo.models' does not exist`:
+
+1. Make sure the module is imported correctly (see above)
+2. For nix-darwin, ensure the module is in `home-manager.sharedModules`, not the darwin modules list
+3. Run `nix flake update` to get the latest version
 
 ### Models Not Linking
 
@@ -439,10 +523,26 @@ journalctl -u model-repo
 cat ~/.local/state/home-manager/activation.log
 ```
 
+Verify the cache directory exists and has correct permissions:
+
+```bash
+ls -la ~/.cache/huggingface/hub/  # Home Manager
+ls -la /var/cache/huggingface/hub/  # NixOS
+```
+
 ### Permission Denied
 
-Ensure your user is in the `model-repo` group:
+For NixOS, ensure your user is in the `model-repo` group:
 
 ```nix
 users.users.myuser.extraGroups = [ "model-repo" ];
+```
+
+### Hash Mismatch
+
+When a model updates upstream, you'll get a hash mismatch error. Update the hash in your configuration:
+
+```bash
+# The error message will show the correct hash
+# got: sha256-NEW_HASH_HERE...
 ```
