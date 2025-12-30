@@ -165,11 +165,21 @@ download_hf_file() {
 # MAIN EXECUTION
 #
 
+# Global temp_dir for cleanup trap
+_HF_TEMP_DIR=""
+
+_hf_cleanup() {
+    if [[ -n "${_HF_TEMP_DIR:-}" && -d "$_HF_TEMP_DIR" ]]; then
+        rm -rf "$_HF_TEMP_DIR"
+    fi
+}
+
 main() {
     # Create temporary directory for downloads
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' EXIT
+    _HF_TEMP_DIR=$(mktemp -d)
+    trap _hf_cleanup EXIT
+
+    local temp_dir="$_HF_TEMP_DIR"
 
     # Create HuggingFace cache structure directories
     local blobs_dir="$temp_dir/blobs"
@@ -250,6 +260,11 @@ main() {
     log_info "  Repository: $REPO"
     log_info "  Commit: $commit_sha"
     log_info "  Files: $file_count"
+
+    # Clear the trap and clean up now that we're done
+    trap - EXIT
+    _hf_cleanup
+    _HF_TEMP_DIR=""
 }
 
 # Run main
