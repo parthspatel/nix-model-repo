@@ -3,9 +3,11 @@
 ## 1. Overview
 
 ### 1.1 Purpose
+
 A Nix plugin/flake library for declaratively managing AI/ML models as reproducible, cacheable Nix derivations. Models are downloaded from standard interfaces (HuggingFace, MLFlow, Git LFS, HTTP/S3), verified, optionally post-processed, and stored in the Nix store for deterministic builds and deployments.
 
 ### 1.2 Goals
+
 - **Reproducibility**: Pin models by hash for deterministic builds
 - **Cacheability**: Leverage Nix store for deduplication and binary caches
 - **Flexibility**: Support multiple model sources and verification methods
@@ -20,6 +22,7 @@ A Nix plugin/flake library for declaratively managing AI/ML models as reproducib
 ### 2.1 The FOD Constraint
 
 Fixed Output Derivations (FODs) in Nix have strict constraints:
+
 - **Network access only during fetch phase**
 - **Output hash must be known upfront** (or use `outputHash = lib.fakeHash` for prefetching)
 - **No arbitrary code execution** during the FOD build
@@ -60,12 +63,12 @@ To remain FOD-compliant while supporting validation, we use a **two-derivation a
 
 ### 2.3 Derivation Types by Use Case
 
-| Use Case | Derivation Type | Hash Required? | Network Access |
-|----------|-----------------|----------------|----------------|
-| Production fetch (known hash) | FOD | Yes | Fetch phase only |
-| Prefetch (discover hash) | FOD with `lib.fakeHash` | No (fails, shows hash) | Fetch phase only |
-| Validation/scanning | Regular derivation | N/A (input is FOD) | None |
-| Development (impure) | `__impure = true` | No | Full (unreproducible) |
+| Use Case                      | Derivation Type         | Hash Required?         | Network Access        |
+| ----------------------------- | ----------------------- | ---------------------- | --------------------- |
+| Production fetch (known hash) | FOD                     | Yes                    | Fetch phase only      |
+| Prefetch (discover hash)      | FOD with `lib.fakeHash` | No (fails, shows hash) | Fetch phase only      |
+| Validation/scanning           | Regular derivation      | N/A (input is FOD)     | None                  |
+| Development (impure)          | `__impure = true`       | No                     | Full (unreproducible) |
 
 ### 2.4 Validation Hook Execution Model
 
@@ -126,6 +129,7 @@ Transformations that modify model content **change the output hash**, so they're
 ```
 
 **Chain of derivations for transformed models:**
+
 ```
 FOD (raw) → Validation → Transform → Final Output
    ↓            ↓            ↓            ↓
@@ -170,6 +174,7 @@ error: hash mismatch in fixed-output derivation:
 ## 3. Supported Model Sources
 
 ### 3.1 HuggingFace Hub
+
 ```nix
 {
   source = "huggingface";
@@ -181,6 +186,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.2 MLFlow Model Registry
+
 ```nix
 {
   source = "mlflow";
@@ -191,6 +197,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.3 Git LFS Repositories
+
 ```nix
 {
   source = "git-lfs";
@@ -201,6 +208,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.4 Direct HTTP/HTTPS URLs
+
 ```nix
 {
   source = "url";
@@ -212,6 +220,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.5 S3/GCS/Azure Blob Storage
+
 ```nix
 {
   source = "s3";
@@ -223,6 +232,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.6 Ollama Registry
+
 ```nix
 {
   source = "ollama";
@@ -231,6 +241,7 @@ error: hash mismatch in fixed-output derivation:
 ```
 
 ### 3.7 Git-Xet Repositories
+
 ```nix
 {
   source = "git-xet";
@@ -252,15 +263,16 @@ error: hash mismatch in fixed-output derivation:
 
 **Git-Xet vs Git-LFS:**
 
-| Feature | Git-LFS | Git-Xet |
-|---------|---------|---------|
-| Storage | Separate LFS server | Content-addressed (CAS) |
-| Deduplication | Per-repo | Global across repos |
-| Streaming | No | Yes (lazy materialization) |
-| Partial clone | Limited | Full support |
-| Chunk-level dedup | No | Yes |
+| Feature           | Git-LFS             | Git-Xet                    |
+| ----------------- | ------------------- | -------------------------- |
+| Storage           | Separate LFS server | Content-addressed (CAS)    |
+| Deduplication     | Per-repo            | Global across repos        |
+| Streaming         | No                  | Yes (lazy materialization) |
+| Partial clone     | Limited             | Full support               |
+| Chunk-level dedup | No                  | Yes                        |
 
 **Use Cases:**
+
 - Large model repositories with shared components
 - Incremental model updates (only changed chunks downloaded)
 - Streaming access to model files without full download
@@ -380,12 +392,12 @@ Large models (100GB+) may take hours to download. Tokens can expire mid-download
 
 **Strategies:**
 
-| Strategy | Description | When to Use |
-|----------|-------------|-------------|
-| Long-lived tokens | HuggingFace tokens don't expire by default | Default for HF |
-| Token refresh hook | Script to refresh token periodically | OAuth/OIDC flows |
-| Download resume | Resume with new token if expired | All sources |
-| Chunked downloads | Smaller requests, each authenticated | Large models |
+| Strategy           | Description                                | When to Use      |
+| ------------------ | ------------------------------------------ | ---------------- |
+| Long-lived tokens  | HuggingFace tokens don't expire by default | Default for HF   |
+| Token refresh hook | Script to refresh token periodically       | OAuth/OIDC flows |
+| Download resume    | Resume with new token if expired           | All sources      |
+| Chunked downloads  | Smaller requests, each authenticated       | Large models     |
 
 **Token Refresh Configuration:**
 
@@ -438,13 +450,13 @@ Large models (100GB+) may take hours to download. Tokens can expire mid-download
 
 **Threat Model:**
 
-| Threat | Mitigation |
-|--------|------------|
-| Token in Nix store (world-readable) | Never store tokens in derivation; use impure env vars |
-| Token in build logs | Mask tokens in output; use `--quiet` for sensitive commands |
-| Token leaked to other builds | Sandboxed builds; token only available to specific FOD |
-| Token stolen from memory | Short-lived tokens; minimal token scope |
-| Token in shell history | Use token files, not command-line args |
+| Threat                              | Mitigation                                                  |
+| ----------------------------------- | ----------------------------------------------------------- |
+| Token in Nix store (world-readable) | Never store tokens in derivation; use impure env vars       |
+| Token in build logs                 | Mask tokens in output; use `--quiet` for sensitive commands |
+| Token leaked to other builds        | Sandboxed builds; token only available to specific FOD      |
+| Token stolen from memory            | Short-lived tokens; minimal token scope                     |
+| Token in shell history              | Use token files, not command-line args                      |
 
 **Secure Configuration:**
 
@@ -503,16 +515,16 @@ Large models (100GB+) may take hours to download. Tokens can expire mid-download
 
 ### 4.6 Per-Source Authentication Reference
 
-| Source | Auth Method | Token Location | Notes |
-|--------|-------------|----------------|-------|
-| HuggingFace | Bearer token | `HF_TOKEN` env or `~/.cache/huggingface/token` | Gated models need license acceptance |
-| MLFlow | Various | Depends on backend | Often uses HTTP Basic or OAuth |
-| Git LFS | Git credentials | `~/.git-credentials` or SSH keys | Standard Git auth |
-| Git-Xet | Xet token | `XET_TOKEN` env or `~/.xet/credentials` | Also supports Git credentials for repo access |
-| S3 | AWS credentials | `~/.aws/credentials` or env vars | IAM roles preferred in cloud |
-| GCS | Service account | `GOOGLE_APPLICATION_CREDENTIALS` | Workload identity in GKE |
-| Azure Blob | SAS token or AD | `AZURE_STORAGE_*` env vars | Managed identity preferred |
-| Ollama | None | N/A | Public registry, no auth |
+| Source      | Auth Method     | Token Location                                 | Notes                                         |
+| ----------- | --------------- | ---------------------------------------------- | --------------------------------------------- |
+| HuggingFace | Bearer token    | `HF_TOKEN` env or `~/.cache/huggingface/token` | Gated models need license acceptance          |
+| MLFlow      | Various         | Depends on backend                             | Often uses HTTP Basic or OAuth                |
+| Git LFS     | Git credentials | `~/.git-credentials` or SSH keys               | Standard Git auth                             |
+| Git-Xet     | Xet token       | `XET_TOKEN` env or `~/.xet/credentials`        | Also supports Git credentials for repo access |
+| S3          | AWS credentials | `~/.aws/credentials` or env vars               | IAM roles preferred in cloud                  |
+| GCS         | Service account | `GOOGLE_APPLICATION_CREDENTIALS`               | Workload identity in GKE                      |
+| Azure Blob  | SAS token or AD | `AZURE_STORAGE_*` env vars                     | Managed identity preferred                    |
+| Ollama      | None            | N/A                                            | Public registry, no auth                      |
 
 ### 4.7 CI/CD Authentication Patterns
 
@@ -537,7 +549,7 @@ build:
   script:
     - nix build .#my-model-app --impure
   variables:
-    HF_TOKEN: $HF_TOKEN  # From CI/CD variables (masked)
+    HF_TOKEN: $HF_TOKEN # From CI/CD variables (masked)
 ```
 
 **NixOS System Build:**
@@ -563,6 +575,7 @@ build:
 ## 5. Model Specification Schema
 
 ### 5.1 Core Configuration
+
 ```nix
 {
   # Required
@@ -588,6 +601,7 @@ build:
 ```
 
 ### 5.2 Post-Download Hooks
+
 ```nix
 {
   postDownload = {
@@ -620,6 +634,7 @@ build:
 ```
 
 ### 5.3 Failure Handling
+
 ```nix
 {
   onDownloadFailure = {
@@ -747,13 +762,13 @@ Our plugin creates a structure in the Nix store that can be symlinked into the H
 
 ### 6.4 Symlink Creation Strategies
 
-| Strategy | Description | Pros | Cons |
-|----------|-------------|------|------|
-| **Direct symlink** | Link model dir → Nix store | Simple, immediate | Requires write access to cache |
-| **Activation script** | Create symlinks on shell enter | Works per-project | Only in dev shells |
-| **NixOS module** | System-wide symlink management | Persistent, system-wide | Requires rebuild |
-| **Home Manager** | Per-user symlink management | Per-user, declarative | Requires home-manager |
-| **Wrapper script** | Set HF_HOME to Nix store | No symlinks needed | App-specific |
+| Strategy              | Description                    | Pros                    | Cons                           |
+| --------------------- | ------------------------------ | ----------------------- | ------------------------------ |
+| **Direct symlink**    | Link model dir → Nix store     | Simple, immediate       | Requires write access to cache |
+| **Activation script** | Create symlinks on shell enter | Works per-project       | Only in dev shells             |
+| **NixOS module**      | System-wide symlink management | Persistent, system-wide | Requires rebuild               |
+| **Home Manager**      | Per-user symlink management    | Per-user, declarative   | Requires home-manager          |
+| **Wrapper script**    | Set HF_HOME to Nix store       | No symlinks needed      | App-specific                   |
 
 **Activation Script Example (for devShells):**
 
@@ -859,6 +874,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ## 7. Integration Features
 
 ### 7.1 Environment Variables
+
 ```nix
 {
   integration.environment = {
@@ -872,6 +888,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ```
 
 ### 7.2 Wrapper Scripts
+
 ```nix
 {
   integration.wrappers = {
@@ -893,6 +910,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ## 8. Flake Interface
 
 ### 8.1 As a Flake Input
+
 ```nix
 {
   inputs = {
@@ -922,6 +940,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ```
 
 ### 8.2 NixOS Module
+
 ```nix
 {
   services.model-repo = {
@@ -942,6 +961,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ```
 
 ### 8.3 Home Manager Module
+
 ```nix
 {
   programs.model-repo = {
@@ -960,6 +980,7 @@ export HF_DATASETS_OFFLINE=1      # For datasets too
 ## 9. CLI Tool (Optional)
 
 ### 9.1 Commands
+
 ```bash
 # Prefetch a model and get its hash
 nix-model-repo prefetch huggingface:meta-llama/Llama-2-7b-hf
@@ -985,11 +1006,13 @@ nix-model-repo to-nix ./my-model-dir
 ## 10. Security Features
 
 ### 10.1 Hash Verification
+
 - SHA256 hash of entire output directory (FOD - Fixed Output Derivation)
 - Per-file hash verification for large models
 - Support for hash algorithms: sha256, sha512
 
 ### 10.2 Post-Download Scanning
+
 ```nix
 {
   security = {
@@ -1009,6 +1032,7 @@ nix-model-repo to-nix ./my-model-dir
 ```
 
 ### 10.3 Provenance Tracking
+
 ```nix
 {
   provenance = {
@@ -1025,6 +1049,7 @@ nix-model-repo to-nix ./my-model-dir
 ## 11. Advanced Features
 
 ### 11.1 Model Sharding
+
 ```nix
 {
   # For models split across multiple files
@@ -1038,6 +1063,7 @@ nix-model-repo to-nix ./my-model-dir
 ```
 
 ### 11.2 Quantization Support
+
 ```nix
 {
   # Post-download quantization
@@ -1052,6 +1078,7 @@ nix-model-repo to-nix ./my-model-dir
 ```
 
 ### 11.3 Model Composition
+
 ```nix
 {
   # Combine multiple model components
@@ -1065,6 +1092,7 @@ nix-model-repo to-nix ./my-model-dir
 ```
 
 ### 11.4 Lazy Fetching
+
 ```nix
 {
   # Don't download until actually needed
@@ -1390,17 +1418,17 @@ Per-source rate limiting to respect API limits and avoid bans:
 
 **Built-in Rate Limit Defaults:**
 
-| Source | Requests/min | Requests/hour | Max Connections | Notes |
-|--------|--------------|---------------|-----------------|-------|
-| HuggingFace (public) | 30 | 500 | 4 | Conservative for shared IPs |
-| HuggingFace (gated) | 10 | 100 | 2 | Stricter for licensed models |
-| HuggingFace (auth) | 60 | 1000 | 8 | With valid HF_TOKEN |
-| GitHub LFS | 30 | 60 | 4 | Unauthenticated |
-| GitHub LFS (auth) | 100 | 5000 | 8 | With GITHUB_TOKEN |
-| Git-Xet | 60 | 1000 | 8 | Chunk-level dedup reduces requests |
-| S3/GCS/Azure | 100 | ∞ | 10 | Cloud limits are very high |
-| Ollama | 60 | ∞ | 4 | Self-hosted friendly |
-| HTTP (generic) | 30 | 500 | 2 | Conservative default |
+| Source               | Requests/min | Requests/hour | Max Connections | Notes                              |
+| -------------------- | ------------ | ------------- | --------------- | ---------------------------------- |
+| HuggingFace (public) | 30           | 500           | 4               | Conservative for shared IPs        |
+| HuggingFace (gated)  | 10           | 100           | 2               | Stricter for licensed models       |
+| HuggingFace (auth)   | 60           | 1000          | 8               | With valid HF_TOKEN                |
+| GitHub LFS           | 30           | 60            | 4               | Unauthenticated                    |
+| GitHub LFS (auth)    | 100          | 5000          | 8               | With GITHUB_TOKEN                  |
+| Git-Xet              | 60           | 1000          | 8               | Chunk-level dedup reduces requests |
+| S3/GCS/Azure         | 100          | ∞             | 10              | Cloud limits are very high         |
+| Ollama               | 60           | ∞             | 4               | Self-hosted friendly               |
+| HTTP (generic)       | 30           | 500           | 2               | Conservative default               |
 
 ---
 
@@ -1673,26 +1701,28 @@ Models must work with Nix binary caches for team/CI sharing:
 
 ## 16. Error Handling Matrix
 
-| Failure Type | Default Action | Configurable Actions |
-|--------------|----------------|---------------------|
+| Failure Type                  | Default Action      | Configurable Actions         |
+| ----------------------------- | ------------------- | ---------------------------- |
 | Network error during download | Retry 3x, then fail | retry, fail, persist-partial |
-| Hash mismatch | Fail | fail, warn, update-hash |
-| Post-download script fails | Fail | fail, warn, ignore, persist |
-| Source not found | Fail | fail |
-| Disk space exhausted | Fail | fail, persist-partial |
-| Authentication failure | Fail | fail |
+| Hash mismatch                 | Fail                | fail, warn, update-hash      |
+| Post-download script fails    | Fail                | fail, warn, ignore, persist  |
+| Source not found              | Fail                | fail                         |
+| Disk space exhausted          | Fail                | fail, persist-partial        |
+| Authentication failure        | Fail                | fail                         |
 
 ---
 
 ## 17. Logging and Observability
 
 ### 17.1 Build Logs
+
 - Progress bars for large downloads
 - Per-file download status
 - Post-download script output
 - Hash verification results
 
 ### 17.2 Structured Metadata
+
 ```nix
 {
   # Output includes metadata file
@@ -1714,6 +1744,7 @@ Models must work with Nix binary caches for team/CI sharing:
 ## 18. Use Case Examples
 
 ### 18.1 Production ML Service
+
 ```nix
 # System flake for a production inference server
 {
@@ -1730,6 +1761,7 @@ Models must work with Nix binary caches for team/CI sharing:
 ```
 
 ### 18.2 Development Environment
+
 ```nix
 # Project flake for development
 {
@@ -1749,6 +1781,7 @@ Models must work with Nix binary caches for team/CI sharing:
 ```
 
 ### 18.3 CI/CD Pipeline
+
 ```nix
 # Flake for testing with specific model version
 {
@@ -1766,17 +1799,20 @@ Models must work with Nix binary caches for team/CI sharing:
 ## 19. Non-Functional Requirements
 
 ### 19.1 Performance
+
 - Parallel downloads for multi-file models
 - Resume interrupted downloads (source-dependent)
 - Efficient use of Nix binary cache
 
 ### 19.2 Compatibility
+
 - Nix 2.4+ (flakes support)
 - NixOS 23.05+
 - Darwin (macOS) support
 - Cross-platform model fetching
 
 ### 19.3 Documentation
+
 - Comprehensive README
 - API reference
 - Common recipes and examples
@@ -1790,14 +1826,14 @@ Models must work with Nix binary caches for team/CI sharing:
 
 Required packages for the fetch/download phase:
 
-| Package | Purpose | Required For |
-|---------|---------|--------------|
-| `curl` | HTTP/HTTPS downloads | All HTTP sources |
-| `git` | Git repository access | Git LFS source |
-| `git-lfs` | Large file storage | Git LFS source |
-| `jq` | JSON parsing | Metadata extraction, HF API |
-| `coreutils` | Basic utilities (sha256sum, etc.) | Hash verification |
-| `cacert` | SSL certificates | HTTPS connections |
+| Package     | Purpose                           | Required For                |
+| ----------- | --------------------------------- | --------------------------- |
+| `curl`      | HTTP/HTTPS downloads              | All HTTP sources            |
+| `git`       | Git repository access             | Git LFS source              |
+| `git-lfs`   | Large file storage                | Git LFS source              |
+| `jq`        | JSON parsing                      | Metadata extraction, HF API |
+| `coreutils` | Basic utilities (sha256sum, etc.) | Hash verification           |
+| `cacert`    | SSL certificates                  | HTTPS connections           |
 
 ### 20.2 Optional Dependencies
 
@@ -1849,16 +1885,16 @@ Required packages for the fetch/download phase:
 
 ### 20.4 Dependency Matrix by Source
 
-| Source | curl | git | git-lfs | git-xet | awscli | huggingface-cli |
-|--------|------|-----|---------|---------|--------|-----------------|
-| HuggingFace | ✓ | - | - | - | - | Optional |
-| MLFlow | ✓ | - | - | - | - | - |
-| Git LFS | - | ✓ | ✓ | - | - | - |
-| Git-Xet | - | ✓ | - | ✓ | - | - |
-| HTTP/HTTPS | ✓ | - | - | - | - | - |
-| S3 | - | - | - | - | ✓ | - |
-| GCS | ✓ | - | - | - | - | - |
-| Ollama | ✓ | - | - | - | - | - |
+| Source      | curl | git | git-lfs | git-xet | awscli | huggingface-cli |
+| ----------- | ---- | --- | ------- | ------- | ------ | --------------- |
+| HuggingFace | ✓    | -   | -       | -       | -      | Optional        |
+| MLFlow      | ✓    | -   | -       | -       | -      | -               |
+| Git LFS     | -    | ✓   | ✓       | -       | -      | -               |
+| Git-Xet     | -    | ✓   | -       | ✓       | -      | -               |
+| HTTP/HTTPS  | ✓    | -   | -       | -       | -      | -               |
+| S3          | -    | -   | -       | -       | ✓      | -               |
+| GCS         | ✓    | -   | -       | -       | -      | -               |
+| Ollama      | ✓    | -   | -       | -       | -      | -               |
 
 ---
 
@@ -2106,22 +2142,22 @@ jobs:
       - uses: cachix/cachix-action@v12
         with:
           name: nix-model-repo
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - run: nix build .#checks.x86_64-linux.e2e
 ```
 
 ### 21.7 Test Coverage Requirements
 
-| Component | Min Coverage | Critical Paths |
-|-----------|--------------|----------------|
-| Hash verification | 100% | All hash algos, mismatch detection |
-| Source URL building | 100% | All source types |
-| Config validation | 90% | Required fields, type checks |
-| Rate limiting | 80% | Limit enforcement, backoff |
-| Disk space checks | 80% | Pre-check, during-download abort |
-| HF cache structure | 90% | Symlink creation, blob layout |
-| Error handling | 90% | All error types, recovery |
-| Validation hooks | 80% | Hook execution, failure modes |
+| Component           | Min Coverage | Critical Paths                     |
+| ------------------- | ------------ | ---------------------------------- |
+| Hash verification   | 100%         | All hash algos, mismatch detection |
+| Source URL building | 100%         | All source types                   |
+| Config validation   | 90%          | Required fields, type checks       |
+| Rate limiting       | 80%          | Limit enforcement, backoff         |
+| Disk space checks   | 80%          | Pre-check, during-download abort   |
+| HF cache structure  | 90%          | Symlink creation, blob layout      |
+| Error handling      | 90%          | All error types, recovery          |
+| Validation hooks    | 80%          | Hook execution, failure modes      |
 
 ---
 
@@ -2147,16 +2183,16 @@ jobs:
 
 **Problem**: How do we implement the actual download mechanism within a FOD?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Shell script in FOD** | Bash script using curl/wget | Simple, portable, full control | Complex error handling, no parallelism |
-| **B. Python fetcher** | Python script using `huggingface_hub` | Native HF support, robust | Python dependency in FOD, slower startup |
-| **C. Rust/Go binary** | Compiled fetcher tool | Fast, parallel, single binary | Build complexity, maintenance burden |
-| **D. Nix builtins** | Chain `builtins.fetchurl` calls | Pure Nix, simple | No parallelism, verbose for many files |
+| Option                     | Description                           | Pros                           | Cons                                     |
+| -------------------------- | ------------------------------------- | ------------------------------ | ---------------------------------------- |
+| **A. Shell script in FOD** | Bash script using curl/wget           | Simple, portable, full control | Complex error handling, no parallelism   |
+| **B. Python fetcher**      | Python script using `huggingface_hub` | Native HF support, robust      | Python dependency in FOD, slower startup |
+| **C. Rust/Go binary**      | Compiled fetcher tool                 | Fast, parallel, single binary  | Build complexity, maintenance burden     |
+| **D. Nix builtins**        | Chain `builtins.fetchurl` calls       | Pure Nix, simple               | No parallelism, verbose for many files   |
 
 **Recommendation**: **Option A (Shell script)** for v1, with path to **Option C** for v2.
 
-*Rationale*: Shell scripts are immediately understandable, don't require additional build steps, and curl is universally available. For v2, a compiled fetcher enables parallelism and better progress reporting.
+_Rationale_: Shell scripts are immediately understandable, don't require additional build steps, and curl is universally available. For v2, a compiled fetcher enables parallelism and better progress reporting.
 
 ---
 
@@ -2164,16 +2200,16 @@ jobs:
 
 **Problem**: How do we know which files to download from a HuggingFace repo?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Hardcoded file list** | User specifies exact files | Predictable, minimal API calls | User burden, breaks on repo changes |
-| **B. API discovery** | Query HF API for file list | Always up-to-date, user-friendly | API dependency, rate limits, impure |
-| **C. Manifest file** | Repo contains `.nix-model-manifest` | Explicit, maintainable | Requires upstream adoption |
-| **D. Git clone + filter** | Clone repo, extract LFS files | Exact version control | Slow, downloads extra data |
+| Option                     | Description                         | Pros                             | Cons                                |
+| -------------------------- | ----------------------------------- | -------------------------------- | ----------------------------------- |
+| **A. Hardcoded file list** | User specifies exact files          | Predictable, minimal API calls   | User burden, breaks on repo changes |
+| **B. API discovery**       | Query HF API for file list          | Always up-to-date, user-friendly | API dependency, rate limits, impure |
+| **C. Manifest file**       | Repo contains `.nix-model-manifest` | Explicit, maintainable           | Requires upstream adoption          |
+| **D. Git clone + filter**  | Clone repo, extract LFS files       | Exact version control            | Slow, downloads extra data          |
 
 **Recommendation**: **Option B (API discovery)** with **Option A** as fallback.
 
-*Rationale*: Most users want "just download the model" UX. API discovery happens during hash calculation (prefetch), then file list is frozen in the Nix expression. Explicit file lists override auto-discovery.
+_Rationale_: Most users want "just download the model" UX. API discovery happens during hash calculation (prefetch), then file list is frozen in the Nix expression. Explicit file lists override auto-discovery.
 
 ```nix
 # Auto-discovery (default)
@@ -2192,16 +2228,16 @@ source.huggingface = {
 
 **Problem**: Should we hash the entire output directory or individual files?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Single output hash** | SHA256 of entire output NAR | Simple, standard FOD pattern | Any file change = full re-download |
-| **B. Per-file hashes** | Hash each file separately | Incremental updates, dedup | Complex, many hashes to manage |
-| **C. Manifest hash** | Hash of (filename, size, hash) list | Detects changes, single hash | Requires manifest generation |
-| **D. Git tree hash** | Use git tree SHA (like fetchFromGitHub) | Matches HF versioning | Only works for git-based sources |
+| Option                    | Description                             | Pros                         | Cons                               |
+| ------------------------- | --------------------------------------- | ---------------------------- | ---------------------------------- |
+| **A. Single output hash** | SHA256 of entire output NAR             | Simple, standard FOD pattern | Any file change = full re-download |
+| **B. Per-file hashes**    | Hash each file separately               | Incremental updates, dedup   | Complex, many hashes to manage     |
+| **C. Manifest hash**      | Hash of (filename, size, hash) list     | Detects changes, single hash | Requires manifest generation       |
+| **D. Git tree hash**      | Use git tree SHA (like fetchFromGitHub) | Matches HF versioning        | Only works for git-based sources   |
 
 **Recommendation**: **Option A** for simplicity, with **Option C** as enhancement.
 
-*Rationale*: Standard FOD hashing is well-understood and works with all Nix tooling. Manifest-based hashing can be added later for incremental update support.
+_Rationale_: Standard FOD hashing is well-understood and works with all Nix tooling. Manifest-based hashing can be added later for incremental update support.
 
 ---
 
@@ -2209,16 +2245,16 @@ source.huggingface = {
 
 **Problem**: HuggingFace repos can change files without changing commit SHA (rare but possible).
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Trust commit SHA** | Pin to commit, trust it's immutable | Simple, matches git model | Rare mutability issues |
-| **B. Content hash primary** | Ignore commit, use content hash | True reproducibility | Different commit = rebuild even if same |
-| **C. Commit + verification** | Pin commit, verify content hash | Best of both worlds | Two hashes to specify |
-| **D. Snapshot service** | Our own immutable snapshot of models | Full control | Infrastructure cost, legal issues |
+| Option                       | Description                          | Pros                      | Cons                                    |
+| ---------------------------- | ------------------------------------ | ------------------------- | --------------------------------------- |
+| **A. Trust commit SHA**      | Pin to commit, trust it's immutable  | Simple, matches git model | Rare mutability issues                  |
+| **B. Content hash primary**  | Ignore commit, use content hash      | True reproducibility      | Different commit = rebuild even if same |
+| **C. Commit + verification** | Pin commit, verify content hash      | Best of both worlds       | Two hashes to specify                   |
+| **D. Snapshot service**      | Our own immutable snapshot of models | Full control              | Infrastructure cost, legal issues       |
 
 **Recommendation**: **Option C (Commit + verification)**.
 
-*Rationale*: Use commit SHA for human readability and cache keys, but verify content hash for true reproducibility. If content changes unexpectedly, fail loudly.
+_Rationale_: Use commit SHA for human readability and cache keys, but verify content hash for true reproducibility. If content changes unexpectedly, fail loudly.
 
 ```nix
 {
@@ -2237,16 +2273,16 @@ source.huggingface = {
 
 **Problem**: Users may want only specific files (tokenizer for inspection, single shard for testing).
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. All-or-nothing** | Download complete model only | Simple, always consistent | Wastes bandwidth for partial needs |
-| **B. File filtering** | Glob patterns to include/exclude | Flexible, bandwidth efficient | Partial models may not load |
-| **C. Separate derivations** | Split model into components | Maximum flexibility | Complex dependency graph |
-| **D. Lazy file fetch** | Download files on first access | Minimal initial download | Impure, breaks offline use |
+| Option                      | Description                      | Pros                          | Cons                               |
+| --------------------------- | -------------------------------- | ----------------------------- | ---------------------------------- |
+| **A. All-or-nothing**       | Download complete model only     | Simple, always consistent     | Wastes bandwidth for partial needs |
+| **B. File filtering**       | Glob patterns to include/exclude | Flexible, bandwidth efficient | Partial models may not load        |
+| **C. Separate derivations** | Split model into components      | Maximum flexibility           | Complex dependency graph           |
+| **D. Lazy file fetch**      | Download files on first access   | Minimal initial download      | Impure, breaks offline use         |
 
 **Recommendation**: **Option B (File filtering)** with validation.
 
-*Rationale*: Allow users to specify file patterns, but validate that required files (config.json, tokenizer) are present if needed for the intended use case.
+_Rationale_: Allow users to specify file patterns, but validate that required files (config.json, tokenizer) are present if needed for the intended use case.
 
 ```nix
 {
@@ -2267,16 +2303,16 @@ source.huggingface = {
 
 **Problem**: Large models can be accidentally garbage collected, requiring expensive re-downloads.
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Standard GC roots** | Use nix-store --add-root | Standard Nix pattern | Manual management |
-| **B. Profile-based** | Install models to profile | Familiar, nix-env style | Mutable state |
-| **C. Flake registry** | Models as flake inputs | Locked in flake.lock | Unusual for data |
-| **D. Dedicated cache dir** | Symlink farm outside store | Persistent, browsable | Non-standard |
+| Option                     | Description                | Pros                    | Cons              |
+| -------------------------- | -------------------------- | ----------------------- | ----------------- |
+| **A. Standard GC roots**   | Use nix-store --add-root   | Standard Nix pattern    | Manual management |
+| **B. Profile-based**       | Install models to profile  | Familiar, nix-env style | Mutable state     |
+| **C. Flake registry**      | Models as flake inputs     | Locked in flake.lock    | Unusual for data  |
+| **D. Dedicated cache dir** | Symlink farm outside store | Persistent, browsable   | Non-standard      |
 
 **Recommendation**: **Option A** with helper commands.
 
-*Rationale*: Use standard Nix GC roots but provide CLI helpers to manage them easily.
+_Rationale_: Use standard Nix GC roots but provide CLI helpers to manage them easily.
 
 ```bash
 # CLI helpers for GC management
@@ -2291,16 +2327,16 @@ nix-model-repo list --pinned       # Show pinned models
 
 **Problem**: How do users discover available models and their hashes?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. No registry** | Users find hashes themselves | Simple, no maintenance | Poor UX |
-| **B. Curated registry** | We maintain list of popular models | Great UX, tested | Maintenance burden, stale |
-| **C. Community registry** | GitHub repo with PRs for models | Community-driven | Quality control issues |
-| **D. Auto-generated** | Scrape HF, generate hashes | Always fresh | Compute cost, trust issues |
+| Option                    | Description                        | Pros                   | Cons                       |
+| ------------------------- | ---------------------------------- | ---------------------- | -------------------------- |
+| **A. No registry**        | Users find hashes themselves       | Simple, no maintenance | Poor UX                    |
+| **B. Curated registry**   | We maintain list of popular models | Great UX, tested       | Maintenance burden, stale  |
+| **C. Community registry** | GitHub repo with PRs for models    | Community-driven       | Quality control issues     |
+| **D. Auto-generated**     | Scrape HF, generate hashes         | Always fresh           | Compute cost, trust issues |
 
 **Recommendation**: **Option B** (curated) + **Option C** (community) hybrid.
 
-*Rationale*: Start with curated list of ~20 popular models (Llama, Mistral, Phi, etc.). Accept community PRs for additions. CI verifies hashes still match.
+_Rationale_: Start with curated list of ~20 popular models (Llama, Mistral, Phi, etc.). Accept community PRs for additions. CI verifies hashes still match.
 
 ```nix
 # Pre-defined models with known-good hashes
@@ -2320,16 +2356,16 @@ models.custom = fetchModel {
 
 **Problem**: Security scans can be slow. Should we re-run on every rebuild?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Always re-validate** | Run validators every build | Maximum security | Slow, wasteful |
-| **B. Cache in derivation** | Validation result in output | Fast rebuilds | Result could be stale |
-| **C. Separate cache** | Store validation results externally | Flexible, shareable | Complex, trust issues |
-| **D. Hash-based skip** | Skip if model hash unchanged | Efficient, correct | Validators might update |
+| Option                     | Description                         | Pros                | Cons                    |
+| -------------------------- | ----------------------------------- | ------------------- | ----------------------- |
+| **A. Always re-validate**  | Run validators every build          | Maximum security    | Slow, wasteful          |
+| **B. Cache in derivation** | Validation result in output         | Fast rebuilds       | Result could be stale   |
+| **C. Separate cache**      | Store validation results externally | Flexible, shareable | Complex, trust issues   |
+| **D. Hash-based skip**     | Skip if model hash unchanged        | Efficient, correct  | Validators might update |
 
 **Recommendation**: **Option D (Hash-based skip)** with override.
 
-*Rationale*: If model content hash is unchanged, validation results are still valid. Provide `--revalidate` flag to force re-scan when validators update.
+_Rationale_: If model content hash is unchanged, validation results are still valid. Provide `--revalidate` flag to force re-scan when validators update.
 
 ```nix
 {
@@ -2352,16 +2388,16 @@ models.custom = fetchModel {
 
 **Problem**: Some models have platform-specific variants (quantizations, architectures).
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Ignore platform** | Same model on all platforms | Simple | May not work everywhere |
-| **B. Platform attribute** | `model.x86_64-linux` | Standard Nix pattern | Verbose |
-| **C. Auto-detect** | Choose variant based on platform | Magical UX | Complex, surprising |
-| **D. Explicit variants** | `model-gguf-q4`, `model-fp16` | Clear, explicit | Many derivations |
+| Option                    | Description                      | Pros                 | Cons                    |
+| ------------------------- | -------------------------------- | -------------------- | ----------------------- |
+| **A. Ignore platform**    | Same model on all platforms      | Simple               | May not work everywhere |
+| **B. Platform attribute** | `model.x86_64-linux`             | Standard Nix pattern | Verbose                 |
+| **C. Auto-detect**        | Choose variant based on platform | Magical UX           | Complex, surprising     |
+| **D. Explicit variants**  | `model-gguf-q4`, `model-fp16`    | Clear, explicit      | Many derivations        |
 
 **Recommendation**: **Option D (Explicit variants)** with convenience wrappers.
 
-*Rationale*: Models are data, not code - platform doesn't usually matter. When it does (GGUF quantizations, architecture-specific), make it explicit.
+_Rationale_: Models are data, not code - platform doesn't usually matter. When it does (GGUF quantizations, architecture-specific), make it explicit.
 
 ```nix
 {
@@ -2389,16 +2425,16 @@ models.custom = fetchModel {
 
 **Problem**: FOD failures are notoriously hard to debug.
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Standard Nix errors** | Let Nix handle errors | Consistent | Cryptic for users |
-| **B. Wrapper with context** | Catch errors, add context | Helpful | Complexity |
-| **C. Structured logging** | JSON logs for parsing | Machine-readable | Overwhelming |
-| **D. Interactive debug mode** | Drop to shell on failure | Most debuggable | Impure, manual |
+| Option                        | Description               | Pros             | Cons              |
+| ----------------------------- | ------------------------- | ---------------- | ----------------- |
+| **A. Standard Nix errors**    | Let Nix handle errors     | Consistent       | Cryptic for users |
+| **B. Wrapper with context**   | Catch errors, add context | Helpful          | Complexity        |
+| **C. Structured logging**     | JSON logs for parsing     | Machine-readable | Overwhelming      |
+| **D. Interactive debug mode** | Drop to shell on failure  | Most debuggable  | Impure, manual    |
 
 **Recommendation**: **Option B (Wrapper with context)** + **Option D (Debug mode)** for development.
 
-*Rationale*: Wrap errors with model-specific context (which file failed, why). Provide `--debug` flag for interactive troubleshooting.
+_Rationale_: Wrap errors with model-specific context (which file failed, why). Provide `--debug` flag for interactive troubleshooting.
 
 ```
 error: Failed to fetch model: meta-llama/Llama-2-7b-hf
@@ -2420,16 +2456,16 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
 
 **Problem**: How should models integrate with flakes? As inputs? Overlays? Lib functions?
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. Lib functions only** | `nix-model-repo.lib.fetchModel` | Minimal, flexible | No pre-built models |
-| **B. Overlay** | `pkgs.model-repo.llama-2-7b` | Familiar, discoverable | Heavyweight |
-| **C. Flake outputs** | `nix-model-repo.models.llama-2-7b` | Direct access | Large flake eval |
-| **D. Separate flake per model** | `llama-2-7b.url = "..."` | Maximum cacheability | Many inputs |
+| Option                          | Description                        | Pros                   | Cons                |
+| ------------------------------- | ---------------------------------- | ---------------------- | ------------------- |
+| **A. Lib functions only**       | `nix-model-repo.lib.fetchModel`    | Minimal, flexible      | No pre-built models |
+| **B. Overlay**                  | `pkgs.model-repo.llama-2-7b`       | Familiar, discoverable | Heavyweight         |
+| **C. Flake outputs**            | `nix-model-repo.models.llama-2-7b` | Direct access          | Large flake eval    |
+| **D. Separate flake per model** | `llama-2-7b.url = "..."`           | Maximum cacheability   | Many inputs         |
 
 **Recommendation**: **Option A + C hybrid**.
 
-*Rationale*: Provide `lib.fetchModel` for custom models and pre-built `models.*` outputs for popular models. Avoid overlay to keep it lightweight.
+_Rationale_: Provide `lib.fetchModel` for custom models and pre-built `models.*` outputs for popular models. Avoid overlay to keep it lightweight.
 
 ```nix
 {
@@ -2455,16 +2491,16 @@ error: Failed to fetch model: meta-llama/Llama-2-7b-hf
 
 **Problem**: Can we resume interrupted downloads? FOD builds start fresh on retry.
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| **A. No resume** | Always start fresh | Simple, pure | Wastes bandwidth |
-| **B. External staging** | Download to cache, copy to FOD | Resumable | Impure, double storage |
-| **C. HTTP Range requests** | Resume partial files with Range header | Bandwidth efficient | Server must support |
-| **D. Chunked derivations** | Each chunk is separate FOD | Per-chunk resume | Complex graph |
+| Option                     | Description                            | Pros                | Cons                   |
+| -------------------------- | -------------------------------------- | ------------------- | ---------------------- |
+| **A. No resume**           | Always start fresh                     | Simple, pure        | Wastes bandwidth       |
+| **B. External staging**    | Download to cache, copy to FOD         | Resumable           | Impure, double storage |
+| **C. HTTP Range requests** | Resume partial files with Range header | Bandwidth efficient | Server must support    |
+| **D. Chunked derivations** | Each chunk is separate FOD             | Per-chunk resume    | Complex graph          |
 
 **Recommendation**: **Option C (Range requests)** within FOD, **Option B** for development mode.
 
-*Rationale*: Most HTTP servers support Range headers. Attempt resume within FOD; if fails, start fresh. For development/prefetch, use external staging.
+_Rationale_: Most HTTP servers support Range headers. Attempt resume within FOD; if fails, start fresh. For development/prefetch, use external staging.
 
 ---
 

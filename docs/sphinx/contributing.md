@@ -57,6 +57,7 @@ nix-model-repo/
 ### Making Changes
 
 1. Create a feature branch:
+
    ```bash
    git checkout -b feature/my-feature
    ```
@@ -64,6 +65,7 @@ nix-model-repo/
 2. Make your changes
 
 3. Test your changes:
+
    ```bash
    # Check flake evaluation
    nix flake check
@@ -91,6 +93,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ### Pull Requests
 
 1. Push your branch:
+
    ```bash
    git push origin feature/my-feature
    ```

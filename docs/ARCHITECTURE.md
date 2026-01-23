@@ -34,13 +34,13 @@
 
 ### 1.2 Key Decisions (from Gaps Analysis)
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Fetcher implementation | Shell script (v1) | Simple, portable, no build step |
-| File discovery | API + explicit fallback | Good UX with override capability |
-| Hash granularity | Single output hash | Standard FOD pattern |
-| Version stability | Commit SHA + content hash | Human-readable + reproducible |
-| Model registry | Curated + community | Quality + scalability |
+| Decision               | Choice                    | Rationale                        |
+| ---------------------- | ------------------------- | -------------------------------- |
+| Fetcher implementation | Shell script (v1)         | Simple, portable, no build step  |
+| File discovery         | API + explicit fallback   | Good UX with override capability |
+| Hash granularity       | Single output hash        | Standard FOD pattern             |
+| Version stability      | Commit SHA + content hash | Human-readable + reproducible    |
+| Model registry         | Curated + community       | Quality + scalability            |
 
 ---
 
@@ -231,15 +231,15 @@ nix-huggingface/
 
 ### 4.2 Component Responsibilities
 
-| Component | Responsibility |
-|-----------|---------------|
-| `lib/fetchModel.nix` | Main entry point, config validation, derivation orchestration |
-| `lib/sources/*.nix` | Source-specific URL building, auth handling, file discovery |
-| `lib/validation.nix` | Validator execution, failure handling, result aggregation |
-| `lib/integration.nix` | HF cache structure, symlinks, environment variables |
-| `fetchers/*.sh` | Actual download logic, progress reporting, error handling |
-| `validators/*.sh` | Security scanning, model verification |
-| `modules/*.nix` | NixOS/Home Manager integration, system-wide config |
+| Component             | Responsibility                                                |
+| --------------------- | ------------------------------------------------------------- |
+| `lib/fetchModel.nix`  | Main entry point, config validation, derivation orchestration |
+| `lib/sources/*.nix`   | Source-specific URL building, auth handling, file discovery   |
+| `lib/validation.nix`  | Validator execution, failure handling, result aggregation     |
+| `lib/integration.nix` | HF cache structure, symlinks, environment variables           |
+| `fetchers/*.sh`       | Actual download logic, progress reporting, error handling     |
+| `validators/*.sh`     | Security scanning, model verification                         |
+| `modules/*.nix`       | NixOS/Home Manager integration, system-wide config            |
 
 ---
 
@@ -1546,14 +1546,14 @@ esac
 
 ### 13.1 Error Categories
 
-| Category | Example | Handling |
-|----------|---------|----------|
-| Network errors | Connection timeout, DNS failure | Retry with backoff |
-| Auth errors | 401, 403, expired token | Helpful error message with fix instructions |
-| Hash mismatch | Model changed upstream | Fail with current vs expected hash |
-| Validation failure | modelscan finds malware | Abort with scan results |
-| Disk space | Not enough space for model | Pre-check with size estimate |
-| Rate limiting | 429 Too Many Requests | Wait and retry, respect Retry-After |
+| Category           | Example                         | Handling                                    |
+| ------------------ | ------------------------------- | ------------------------------------------- |
+| Network errors     | Connection timeout, DNS failure | Retry with backoff                          |
+| Auth errors        | 401, 403, expired token         | Helpful error message with fix instructions |
+| Hash mismatch      | Model changed upstream          | Fail with current vs expected hash          |
+| Validation failure | modelscan finds malware         | Abort with scan results                     |
+| Disk space         | Not enough space for model      | Pre-check with size estimate                |
+| Rate limiting      | 429 Too Many Requests           | Wait and retry, respect Retry-After         |
 
 ### 13.2 Error Message Format
 
@@ -2623,21 +2623,21 @@ in {
 
 ### 17.2 Library Exports Summary
 
-| Export | Type | Description |
-|--------|------|-------------|
-| `lib.fetchModel` | `pkgs -> config -> derivation` | Core function, user passes pkgs |
-| `lib.sources` | `attrset` | Source factories (mkMlflow, mkS3, etc.) |
-| `lib.validation.presets` | `attrset` | Validation presets (strict, standard, etc.) |
-| `lib.validation.validators` | `attrset` | Built-in validators |
-| `lib.validation.mkValidator` | `config -> validator` | Create custom validators |
-| `lib.instantiate` | `pkgs -> defs -> models` | Bulk instantiate definitions |
-| `lib.mkShellHook` | `pkgs -> config -> string` | Generate shell hook for HF cache |
-| `modelDefs` | `attrset` | System-agnostic model definitions |
-| `models.${system}` | `attrset` | Pre-built validated models |
-| `rawModels.${system}` | `attrset` | Pre-built models without validation |
-| `nixosModules.default` | `module` | NixOS integration |
-| `homeManagerModules.default` | `module` | Home Manager integration |
-| `overlays.default` | `overlay` | Nixpkgs overlay |
+| Export                       | Type                           | Description                                 |
+| ---------------------------- | ------------------------------ | ------------------------------------------- |
+| `lib.fetchModel`             | `pkgs -> config -> derivation` | Core function, user passes pkgs             |
+| `lib.sources`                | `attrset`                      | Source factories (mkMlflow, mkS3, etc.)     |
+| `lib.validation.presets`     | `attrset`                      | Validation presets (strict, standard, etc.) |
+| `lib.validation.validators`  | `attrset`                      | Built-in validators                         |
+| `lib.validation.mkValidator` | `config -> validator`          | Create custom validators                    |
+| `lib.instantiate`            | `pkgs -> defs -> models`       | Bulk instantiate definitions                |
+| `lib.mkShellHook`            | `pkgs -> config -> string`     | Generate shell hook for HF cache            |
+| `modelDefs`                  | `attrset`                      | System-agnostic model definitions           |
+| `models.${system}`           | `attrset`                      | Pre-built validated models                  |
+| `rawModels.${system}`        | `attrset`                      | Pre-built models without validation         |
+| `nixosModules.default`       | `module`                       | NixOS integration                           |
+| `homeManagerModules.default` | `module`                       | Home Manager integration                    |
+| `overlays.default`           | `overlay`                      | Nixpkgs overlay                             |
 
 ### 17.3 End-User Flake Example
 

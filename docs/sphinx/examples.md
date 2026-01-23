@@ -4,17 +4,17 @@ This page provides complete example flake configurations for common use cases.
 
 ## Quick Links
 
-| Example | Description | Key Features |
-|---------|-------------|--------------|
-| [Basic Model](#basic-model-flake) | Minimal single model setup | Simple, quick start |
-| [Multi-Model](#multi-model-flake) | Multiple models in one flake | Embeddings, LLM, classifier |
-| [Development Environment](#development-environment-flake) | Dev shell with models | Python, offline mode |
-| [Production Inference](#production-inference-flake) | Production deployment | Strict validation, NixOS module |
-| [Multi-Source](#multi-source-flake) | Different model sources | S3, MLFlow, Git LFS |
-| [Validation Presets](#validation-presets-flake) | Security configurations | Presets, custom validators |
-| [NixOS Configuration](#nixos-configuration-with-models) | Full NixOS integration | systemd service |
-| [Home Manager](#home-manager-configuration) | User-level config | Shell integration |
-| [Devenv](#devenv-configuration) | devenv.sh integration | ML development |
+| Example                                                   | Description                  | Key Features                    |
+| --------------------------------------------------------- | ---------------------------- | ------------------------------- |
+| [Basic Model](#basic-model-flake)                         | Minimal single model setup   | Simple, quick start             |
+| [Multi-Model](#multi-model-flake)                         | Multiple models in one flake | Embeddings, LLM, classifier     |
+| [Development Environment](#development-environment-flake) | Dev shell with models        | Python, offline mode            |
+| [Production Inference](#production-inference-flake)       | Production deployment        | Strict validation, NixOS module |
+| [Multi-Source](#multi-source-flake)                       | Different model sources      | S3, MLFlow, Git LFS             |
+| [Validation Presets](#validation-presets-flake)           | Security configurations      | Presets, custom validators      |
+| [NixOS Configuration](#nixos-configuration-with-models)   | Full NixOS integration       | systemd service                 |
+| [Home Manager](#home-manager-configuration)               | User-level config            | Shell integration               |
+| [Devenv](#devenv-configuration)                           | devenv.sh integration        | ML development                  |
 
 ## Basic Model Flake
 
@@ -589,6 +589,7 @@ A [devenv](https://devenv.sh) configuration with AI models. See the full [Devenv
 ### Basic Devenv Setup
 
 **devenv.yaml:**
+
 ```yaml
 inputs:
   nix-model-repo:
@@ -596,6 +597,7 @@ inputs:
 ```
 
 **devenv.nix:**
+
 ```nix
 { pkgs, lib, inputs, ... }:
 

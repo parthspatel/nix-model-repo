@@ -118,16 +118,16 @@ Enable AI model management.
 
 Attribute set of models to fetch. Each model has:
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `name` | `string` | No | Model name (defaults to attribute name) |
-| `source` | `attrs` | Yes | Source configuration (huggingface, s3, etc.) |
-| `hash` | `string` | Yes | SHA256 hash in SRI format |
-| `validation` | `attrs` | No | Validation settings |
-| `integration` | `attrs` | No | Integration settings |
-| `network` | `attrs` | No | Network settings (timeouts, retries) |
-| `auth` | `attrs` | No | Authentication configuration |
-| `meta` | `attrs` | No | Metadata |
+| Option        | Type     | Required | Description                                  |
+| ------------- | -------- | -------- | -------------------------------------------- |
+| `name`        | `string` | No       | Model name (defaults to attribute name)      |
+| `source`      | `attrs`  | Yes      | Source configuration (huggingface, s3, etc.) |
+| `hash`        | `string` | Yes      | SHA256 hash in SRI format                    |
+| `validation`  | `attrs`  | No       | Validation settings                          |
+| `integration` | `attrs`  | No       | Integration settings                         |
+| `network`     | `attrs`  | No       | Network settings (timeouts, retries)         |
+| `auth`        | `attrs`  | No       | Authentication configuration                 |
+| `meta`        | `attrs`  | No       | Metadata                                     |
 
 #### `services.model-repo.cacheDir`
 
@@ -168,12 +168,12 @@ Default network settings applied to all models.
 
 When enabled, the module sets:
 
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `MODEL_REPO_<NAME>` | Store path | Path to each model (uppercase name, dashes become underscores) |
-| `HF_HOME` | Cache dir | HuggingFace cache directory (set in enterShell) |
-| `HF_HUB_OFFLINE` | `1` | Prevent downloads (if offlineMode enabled) |
-| `TRANSFORMERS_OFFLINE` | `1` | Prevent downloads (if offlineMode enabled) |
+| Variable               | Value      | Description                                                    |
+| ---------------------- | ---------- | -------------------------------------------------------------- |
+| `MODEL_REPO_<NAME>`    | Store path | Path to each model (uppercase name, dashes become underscores) |
+| `HF_HOME`              | Cache dir  | HuggingFace cache directory (set in enterShell)                |
+| `HF_HUB_OFFLINE`       | `1`        | Prevent downloads (if offlineMode enabled)                     |
+| `TRANSFORMERS_OFFLINE` | `1`        | Prevent downloads (if offlineMode enabled)                     |
 
 Example: A model named `bert-base` will have environment variable `MODEL_REPO_BERT_BASE`.
 

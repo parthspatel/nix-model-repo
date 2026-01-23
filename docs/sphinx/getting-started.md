@@ -208,6 +208,7 @@ This is expected on first build or when models update. Use the hash from the err
 ### Authentication Failed
 
 For gated models:
+
 1. Ensure `HF_TOKEN` is set
 2. Verify you've accepted the model's license on HuggingFace
 3. Check the token has read permissions

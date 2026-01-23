@@ -37,13 +37,13 @@ nix-model-repo fetch [OPTIONS] <SOURCE>
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--name, -n` | Override derivation name |
-| `--revision, -r` | Revision/version to fetch (default: main) |
-| `--output, -o` | Output format: `path`, `json`, `link` (default: path) |
-| `--link` | Create HuggingFace cache symlink after fetching |
-| `--validation` | Validation preset: `strict`, `standard`, `minimal`, `none` |
+| Option           | Description                                                |
+| ---------------- | ---------------------------------------------------------- |
+| `--name, -n`     | Override derivation name                                   |
+| `--revision, -r` | Revision/version to fetch (default: main)                  |
+| `--output, -o`   | Output format: `path`, `json`, `link` (default: path)      |
+| `--link`         | Create HuggingFace cache symlink after fetching            |
+| `--validation`   | Validation preset: `strict`, `standard`, `minimal`, `none` |
 
 **Examples:**
 
@@ -71,9 +71,9 @@ nix-model-repo hash [OPTIONS] <SOURCE>
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--verify` | Verify against provided hash instead of computing |
+| Option     | Description                                             |
+| ---------- | ------------------------------------------------------- |
+| `--verify` | Verify against provided hash instead of computing       |
 | `--format` | Output format: `sri`, `base32`, `base64` (default: sri) |
 
 **Examples:**
@@ -97,11 +97,11 @@ nix-model-repo link [OPTIONS] <MODEL_PATH>
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
+| Option        | Description                                                       |
+| ------------- | ----------------------------------------------------------------- |
 | `--cache-dir` | HuggingFace cache directory (default: `~/.cache/huggingface/hub`) |
-| `--name` | Override the cache directory name |
-| `--force, -f` | Overwrite existing links |
+| `--name`      | Override the cache directory name                                 |
+| `--force, -f` | Overwrite existing links                                          |
 
 **Examples:**
 
@@ -126,11 +126,11 @@ nix-model-repo list [OPTIONS]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--installed` | List only installed models (in Nix store) |
-| `--linked` | List only models linked to HF cache |
-| `--format` | Output format: `table`, `json`, `paths` (default: table) |
+| Option        | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `--installed` | List only installed models (in Nix store)                |
+| `--linked`    | List only models linked to HF cache                      |
+| `--format`    | Output format: `table`, `json`, `paths` (default: table) |
 
 **Examples:**
 
@@ -155,8 +155,8 @@ nix-model-repo info [OPTIONS] <MODEL>
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
+| Option     | Description                                   |
+| ---------- | --------------------------------------------- |
 | `--format` | Output format: `text`, `json` (default: text) |
 
 **Examples:**
@@ -179,11 +179,11 @@ nix-model-repo validate [OPTIONS] <MODEL_PATH>
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--preset` | Validation preset to use |
-| `--validator` | Specific validator to run (can be repeated) |
-| `--continue-on-error` | Continue validation even if a check fails |
+| Option                | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `--preset`            | Validation preset to use                    |
+| `--validator`         | Specific validator to run (can be repeated) |
+| `--continue-on-error` | Continue validation even if a check fails   |
 
 **Examples:**
 
@@ -208,10 +208,10 @@ nix-model-repo clean [OPTIONS]
 
 **Options:**
 
-| Option | Description |
-|--------|-------------|
-| `--dry-run` | Show what would be removed without removing |
-| `--broken-links` | Only remove broken symlinks from HF cache |
+| Option           | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `--dry-run`      | Show what would be removed without removing |
+| `--broken-links` | Only remove broken symlinks from HF cache   |
 
 **Examples:**
 
@@ -261,12 +261,12 @@ nix develop .#with-llama
 
 The CLI respects these environment variables:
 
-| Variable | Description |
-|----------|-------------|
-| `HF_TOKEN` | HuggingFace authentication token |
-| `HF_HOME` | HuggingFace cache directory (default: `~/.cache/huggingface`) |
-| `NIX_MODEL_REPO_CACHE` | Cache directory for CLI operations |
-| `NIX_MODEL_REPO_VALIDATION` | Default validation preset |
+| Variable                    | Description                                                   |
+| --------------------------- | ------------------------------------------------------------- |
+| `HF_TOKEN`                  | HuggingFace authentication token                              |
+| `HF_HOME`                   | HuggingFace cache directory (default: `~/.cache/huggingface`) |
+| `NIX_MODEL_REPO_CACHE`      | Cache directory for CLI operations                            |
+| `NIX_MODEL_REPO_VALIDATION` | Default validation preset                                     |
 
 ## Shell Completions
 

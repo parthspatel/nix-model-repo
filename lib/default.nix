@@ -11,10 +11,18 @@ let
 
   # Create the main fetchModel function
   fetchModel = import ./fetchModel.nix {
-    inherit lib pkgs types sources validation integration;
+    inherit
+      lib
+      pkgs
+      types
+      sources
+      validation
+      integration
+      ;
   };
 
-in {
+in
+{
   # Main API
   inherit fetchModel;
 
@@ -31,7 +39,13 @@ in {
   };
 
   # Integration helpers
-  inherit (integration) mkShellHook mkHfSymlinks mkModelWrapper parseHfRepo mkHfCachePath;
+  inherit (integration)
+    mkShellHook
+    mkHfSymlinks
+    mkModelWrapper
+    parseHfRepo
+    mkHfCachePath
+    ;
 
   # Type utilities (advanced)
   types = {
@@ -41,8 +55,5 @@ in {
 
   # Instantiate model definitions with this pkgs
   # Usage: instantiate modelDefs
-  instantiate = defs:
-    lib.mapAttrsRecursive
-      (_path: def: fetchModel def)
-      defs;
+  instantiate = defs: lib.mapAttrsRecursive (_path: def: fetchModel def) defs;
 }

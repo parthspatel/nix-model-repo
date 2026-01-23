@@ -377,31 +377,37 @@ ls -la result/snapshots/
 ## Phase 5: Implementation Checkpoints
 
 ### Checkpoint 1: Scaffolding Complete
+
 - [ ] flake.nix skeleton builds
 - [ ] Directory structure created
 - [ ] lib/default.nix exports empty attrset
 
 ### Checkpoint 2: Types Working
+
 - [ ] lib/types.nix validates source configs
 - [ ] Error messages are helpful
 - [ ] Hash normalization works
 
 ### Checkpoint 3: Source Adapter Working
+
 - [ ] lib/sources/huggingface.nix creates FOD
 - [ ] FOD builds with fake hash (gets real hash in error)
 - [ ] Fetcher script downloads files
 
 ### Checkpoint 4: Validation Working
+
 - [ ] Validation derivation runs validators
 - [ ] Presets apply correctly
 - [ ] onFailure handling works
 
 ### Checkpoint 5: Integration Working
+
 - [ ] Full fetchModel pipeline works
 - [ ] HF cache structure is correct
 - [ ] passthru.raw accessible
 
 ### Checkpoint 6: Flake Complete
+
 - [ ] lib.fetchModel works
 - [ ] lib.sources factories work
 - [ ] lib.validation presets work
@@ -473,6 +479,7 @@ in
 ## Next: Begin Implementation
 
 Starting with:
+
 1. Create directory structure
 2. Implement flake.nix skeleton
 3. Implement lib/types.nix

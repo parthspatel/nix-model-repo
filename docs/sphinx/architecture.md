@@ -61,6 +61,7 @@ Nix Model Repo is designed around the principle of reproducible, secure model fe
 FODs are Nix derivations where the output hash is known in advance. They're the only derivation type allowed to access the network during build.
 
 **Key properties:**
+
 - Output hash must be specified upfront
 - Network access is allowed
 - Build is considered successful only if output matches expected hash
@@ -71,18 +72,21 @@ FODs are Nix derivations where the output hash is known in advance. They're the 
 We split fetching and validation into two phases:
 
 **Phase 1: Fetch (FOD)**
+
 - Downloads model files
 - Creates proper directory structure
 - Must be deterministic (same hash every time)
 - Network access allowed
 
 **Phase 2: Validate (Regular Derivation)**
+
 - Takes Phase 1 output as input
 - Runs security scanners
 - No network access
 - Can use any tools
 
 This separation allows:
+
 - Hash verification before any validation
 - Non-deterministic validators (different scan versions)
 - Cached validation results
@@ -253,12 +257,12 @@ $out/
 
 ### Threat Mitigation
 
-| Threat | Mitigation |
-|--------|------------|
-| Malicious model | Hash verification + validation |
-| Supply chain attack | Pinned sources + hash |
-| Pickle exploits | noPickleFiles validator |
-| Network MITM | HTTPS + hash verification |
+| Threat              | Mitigation                     |
+| ------------------- | ------------------------------ |
+| Malicious model     | Hash verification + validation |
+| Supply chain attack | Pinned sources + hash          |
+| Pickle exploits     | noPickleFiles validator        |
+| Network MITM        | HTTPS + hash verification      |
 
 ## Performance Considerations
 

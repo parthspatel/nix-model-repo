@@ -1,6 +1,13 @@
 # lib/fetchModel.nix
 # Core function that orchestrates model fetching, validation, and integration
-{ lib, pkgs, types, sources, validation, integration }:
+{
+  lib,
+  pkgs,
+  types,
+  sources,
+  validation,
+  integration,
+}:
 
 # Main fetchModel function
 # Usage: fetchModel { name, source, hash, validation?, integration?, network?, auth?, meta? }
@@ -46,7 +53,7 @@ let
   #
   # Add passthru attributes for integration helpers
   finalModel = validatedModel.overrideAttrs (old: {
-    passthru = (old.passthru or {}) // {
+    passthru = (old.passthru or { }) // {
       # Raw FOD output (before validation)
       raw = rawModel;
 
@@ -61,10 +68,12 @@ let
 
       # Integration helpers
       shellHook = integration.mkShellHook {
-        models = [{
-          drv = validatedModel;
-          inherit (sourceMeta) org model;
-        }];
+        models = [
+          {
+            drv = validatedModel;
+            inherit (sourceMeta) org model;
+          }
+        ];
       };
 
       setupSymlinks = integration.mkHfSymlinks {
@@ -74,14 +83,17 @@ let
     };
 
     # Standard Nix meta attributes
-    meta = (old.meta or {}) // mergedConfig.meta // {
-      description = old.meta.description or "AI model: ${sourceMeta.org}/${sourceMeta.model}";
-    };
+    meta =
+      (old.meta or { })
+      // mergedConfig.meta
+      // {
+        description = old.meta.description or "AI model: ${sourceMeta.org}/${sourceMeta.model}";
+      };
   });
 
 in
-  # Fail fast if config is invalid
-  if !configValidation.valid then
-    throw "Invalid fetchModel configuration:\n  ${lib.concatStringsSep "\n  " configValidation.errors}"
-  else
-    finalModel
+# Fail fast if config is invalid
+if !configValidation.valid then
+  throw "Invalid fetchModel configuration:\n  ${lib.concatStringsSep "\n  " configValidation.errors}"
+else
+  finalModel

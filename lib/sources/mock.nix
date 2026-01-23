@@ -7,13 +7,14 @@
   sourceType = "mock";
 
   # Build a mock FOD derivation with empty files
-  mkFetchDerivation = {
-    name,
-    hash,
-    sourceConfig,
-    auth ? {},
-    network ? {},
-  }:
+  mkFetchDerivation =
+    {
+      name,
+      hash,
+      sourceConfig,
+      auth ? { },
+      network ? { },
+    }:
     let
       # Mock config
       org = sourceConfig.org or "test-org";
@@ -22,7 +23,8 @@
       files = sourceConfig.files or [ "config.json" ];
       commitSha = sourceConfig.commitSha or "0000000000000000000000000000000000000000";
 
-    in pkgs.stdenvNoCC.mkDerivation {
+    in
+    pkgs.stdenvNoCC.mkDerivation {
       name = "${name}-raw";
 
       # Fixed-output derivation settings
@@ -32,7 +34,10 @@
 
       dontUnpack = true;
 
-      nativeBuildInputs = with pkgs; [ coreutils jq ];
+      nativeBuildInputs = with pkgs; [
+        coreutils
+        jq
+      ];
 
       buildPhase = ''
         runHook preBuild
@@ -56,12 +61,17 @@
         '') files}
 
         # Create minimal config.json if in files list
-        ${if lib.elem "config.json" files then ''
-          echo '{"model_type": "mock", "architectures": ["MockModel"]}' > snapshots/${commitSha}/config.json
-          config_hash=$(sha256sum snapshots/${commitSha}/config.json | cut -d' ' -f1)
-          mv snapshots/${commitSha}/config.json blobs/$config_hash
-          ln -sf "../../blobs/$config_hash" snapshots/${commitSha}/config.json
-        '' else ""}
+        ${
+          if lib.elem "config.json" files then
+            ''
+              echo '{"model_type": "mock", "architectures": ["MockModel"]}' > snapshots/${commitSha}/config.json
+              config_hash=$(sha256sum snapshots/${commitSha}/config.json | cut -d' ' -f1)
+              mv snapshots/${commitSha}/config.json blobs/$config_hash
+              ln -sf "../../blobs/$config_hash" snapshots/${commitSha}/config.json
+            ''
+          else
+            ""
+        }
 
         # Write metadata
         cat > .nix-model-repo-meta.json << EOF
@@ -100,14 +110,18 @@
   # Validate mock source config
   validateConfig = sourceConfig: {
     valid = true;
-    errors = [];
+    errors = [ ];
   };
 
   # No impure env vars needed
-  impureEnvVars = _: [];
+  impureEnvVars = _: [ ];
 
   # Minimal build inputs
-  buildInputs = pkgs: with pkgs; [ coreutils jq ];
+  buildInputs =
+    pkgs: with pkgs; [
+      coreutils
+      jq
+    ];
 
   # Extract metadata
   extractMeta = sourceConfig: {

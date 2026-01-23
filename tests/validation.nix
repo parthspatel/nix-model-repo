@@ -7,7 +7,8 @@ let
   presets = import ../lib/validation/presets.nix { inherit lib; };
   validators = import ../lib/validation/validators.nix { inherit lib; };
 
-in {
+in
+{
   unitTests = {
     # Test: presets exist
     testPresetsStrict = {
@@ -47,7 +48,7 @@ in {
     };
 
     testStrictHasValidators = {
-      expr = lib.isList (presets.strict.validators or []);
+      expr = lib.isList (presets.strict.validators or [ ]);
       expected = true;
     };
 
@@ -95,7 +96,7 @@ in {
     };
 
     testRequiredFilesReturnsValidator = {
-      expr = (validators.requiredFiles ["config.json"]) ? name;
+      expr = (validators.requiredFiles [ "config.json" ]) ? name;
       expected = true;
     };
   };

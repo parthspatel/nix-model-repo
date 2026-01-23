@@ -15,20 +15,24 @@ let
       pickleScan = true;
       checksums = true;
     };
-    validators = [];
+    validators = [ ];
     onFailure = "abort";
     timeout = 300;
   };
 
   # Merge validation config with defaults
-  normalizeValidation = validation:
+  normalizeValidation =
+    validation:
     let
       merged = defaultValidation // validation;
-    in merged // {
-      defaults = defaultValidation.defaults // (validation.defaults or {});
+    in
+    merged
+    // {
+      defaults = defaultValidation.defaults // (validation.defaults or { });
     };
 
-in {
+in
+{
   # Re-export validators and presets
   inherit validators presets;
 
@@ -36,11 +40,12 @@ in {
   inherit (validators) mkValidator custom;
 
   # Build a validation derivation that runs validators on a model
-  mkValidationDerivation = {
-    name,
-    src,  # The FOD output (raw model)
-    validation ? {},
-  }:
+  mkValidationDerivation =
+    {
+      name,
+      src, # The FOD output (raw model)
+      validation ? { },
+    }:
     let
       config = normalizeValidation validation;
 
@@ -51,9 +56,9 @@ in {
       allValidators =
         # Custom validators from config
         config.validators
-        # TODO: Add default validators (modelscan, etc.) when skipDefaults is false
-        # For now, just use custom validators
-        ;
+      # TODO: Add default validators (modelscan, etc.) when skipDefaults is false
+      # For now, just use custom validators
+      ;
 
       # Generate validation script
       validatorScript = v: ''
@@ -69,22 +74,36 @@ in {
 
         if [[ $validator_exit_code -eq 124 ]]; then
           echo "TIMEOUT: Validator ${v.name} exceeded ${toString v.timeout}s limit" >&2
-          ${if v.onFailure == "abort" then ''
-            exit 1
-          '' else if v.onFailure == "warn" then ''
-            echo "WARNING: Continuing despite timeout" >&2
-          '' else ''
-            true
-          ''}
+          ${
+            if v.onFailure == "abort" then
+              ''
+                exit 1
+              ''
+            else if v.onFailure == "warn" then
+              ''
+                echo "WARNING: Continuing despite timeout" >&2
+              ''
+            else
+              ''
+                true
+              ''
+          }
         elif [[ $validator_exit_code -ne 0 ]]; then
           echo "FAILED: Validator ${v.name} exited with code $validator_exit_code" >&2
-          ${if v.onFailure == "abort" then ''
-            exit 1
-          '' else if v.onFailure == "warn" then ''
-            echo "WARNING: Continuing despite validation failure" >&2
-          '' else ''
-            true
-          ''}
+          ${
+            if v.onFailure == "abort" then
+              ''
+                exit 1
+              ''
+            else if v.onFailure == "warn" then
+              ''
+                echo "WARNING: Continuing despite validation failure" >&2
+              ''
+            else
+              ''
+                true
+              ''
+          }
         else
           echo "PASSED: ${v.name}"
         fi
@@ -101,9 +120,14 @@ in {
         echo "Validators: ${toString (builtins.length allValidators)}"
         echo ""
 
-        ${if allValidators == [] then ''
-          echo "No validators configured, skipping validation"
-        '' else lib.concatMapStrings validatorScript allValidators}
+        ${
+          if allValidators == [ ] then
+            ''
+              echo "No validators configured, skipping validation"
+            ''
+          else
+            lib.concatMapStrings validatorScript allValidators
+        }
 
         echo ""
         echo "========================================"
@@ -112,11 +136,13 @@ in {
       '';
 
     in
-      if !isEnabled then
-        # Validation disabled - just copy the source
-        pkgs.runCommand name {
+    if !isEnabled then
+      # Validation disabled - just copy the source
+      pkgs.runCommand name
+        {
           inherit src;
-        } ''
+        }
+        ''
           cp -r $src $out
           chmod -R u+w $out
 
@@ -127,55 +153,56 @@ in {
             mv $out/.nix-model-repo-meta.json.tmp $out/.nix-model-repo-meta.json
           fi
         ''
-      else
-        # Validation enabled - run validators
-        pkgs.stdenvNoCC.mkDerivation {
-          inherit name src;
+    else
+      # Validation enabled - run validators
+      pkgs.stdenvNoCC.mkDerivation {
+        inherit name src;
 
-          nativeBuildInputs = with pkgs; [
-            jq
-            coreutils
-            findutils
-          ];
+        nativeBuildInputs = with pkgs; [
+          jq
+          coreutils
+          findutils
+        ];
 
-          dontUnpack = true;
+        dontUnpack = true;
 
-          buildPhase = ''
-            runHook preBuild
+        buildPhase = ''
+          runHook preBuild
 
-            ${validationScript}
+          ${validationScript}
 
-            runHook postBuild
-          '';
+          runHook postBuild
+        '';
 
-          installPhase = ''
-            runHook preInstall
+        installPhase = ''
+          runHook preInstall
 
-            # Copy validated model to output
-            cp -r $src $out
-            chmod -R u+w $out
+          # Copy validated model to output
+          cp -r $src $out
+          chmod -R u+w $out
 
-            # Update metadata with validation results
-            if [[ -f $out/.nix-model-repo-meta.json ]]; then
-              ${pkgs.jq}/bin/jq '. + {
-                "validation": {
-                  "enabled": true,
-                  "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'",
-                  "validators": ${builtins.toJSON (map (v: v.name) allValidators)},
-                  "passed": true
-                }
-              }' $out/.nix-model-repo-meta.json > $out/.nix-model-repo-meta.json.tmp
-              mv $out/.nix-model-repo-meta.json.tmp $out/.nix-model-repo-meta.json
-            fi
+          # Update metadata with validation results
+          if [[ -f $out/.nix-model-repo-meta.json ]]; then
+            ${pkgs.jq}/bin/jq '. + {
+              "validation": {
+                "enabled": true,
+                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'",
+                "validators": ${builtins.toJSON (map (v: v.name) allValidators)},
+                "passed": true
+              }
+            }' $out/.nix-model-repo-meta.json > $out/.nix-model-repo-meta.json.tmp
+            mv $out/.nix-model-repo-meta.json.tmp $out/.nix-model-repo-meta.json
+          fi
 
-            runHook postInstall
-          '';
-        };
+          runHook postInstall
+        '';
+      };
 
   # Merge validators from preset with custom validators
-  mergeValidators = preset: customValidators:
+  mergeValidators =
+    preset: customValidators:
     let
-      presetValidators = preset.validators or [];
+      presetValidators = preset.validators or [ ];
     in
-      presetValidators ++ customValidators;
+    presetValidators ++ customValidators;
 }

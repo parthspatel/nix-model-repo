@@ -7,18 +7,20 @@ let
   fetcherScript = ../../fetchers/huggingface.sh;
   commonScript = ../../fetchers/common.sh;
 
-in {
+in
+{
   # Source type identifier
   sourceType = "huggingface";
 
   # Build the FOD derivation for fetching from HuggingFace
-  mkFetchDerivation = {
-    name,
-    hash,
-    sourceConfig,
-    auth ? {},
-    network ? {},
-  }:
+  mkFetchDerivation =
+    {
+      name,
+      hash,
+      sourceConfig,
+      auth ? { },
+      network ? { },
+    }:
     let
       # Extract config with defaults
       repo = sourceConfig.repo;
@@ -30,13 +32,14 @@ in {
 
       # Network settings with defaults
       connectTimeout = toString (network.timeout.connect or 30);
-      maxTime = toString (network.timeout.read or 0);  # 0 = no limit
+      maxTime = toString (network.timeout.read or 0); # 0 = no limit
       bandwidthLimit = network.bandwidth.limit or "";
 
       # Determine derivation name from repo
-      drvName = "${lib.replaceStrings ["/"] ["-"] repo}-raw";
+      drvName = "${lib.replaceStrings [ "/" ] [ "-" ] repo}-raw";
 
-    in pkgs.stdenvNoCC.mkDerivation {
+    in
+    pkgs.stdenvNoCC.mkDerivation {
       name = drvName;
 
       # Fixed-output derivation settings
@@ -57,12 +60,15 @@ in {
 
       # Impure environment variables for authentication
       # These are read from the build environment (user's shell)
-      impureEnvVars = lib.fetchers.proxyImpureEnvVars ++ [
-        "HF_TOKEN"
-        "HUGGING_FACE_HUB_TOKEN"
-      ] ++ lib.optionals (auth.tokenEnvVar or null != null) [
-        auth.tokenEnvVar
-      ];
+      impureEnvVars =
+        lib.fetchers.proxyImpureEnvVars
+        ++ [
+          "HF_TOKEN"
+          "HUGGING_FACE_HUB_TOKEN"
+        ]
+        ++ lib.optionals (auth.tokenEnvVar or null != null) [
+          auth.tokenEnvVar
+        ];
 
       # Environment variables for the fetcher script
       REPO = repo;
@@ -110,17 +116,41 @@ in {
     };
 
   # Validate HuggingFace-specific configuration
-  validateConfig = sourceConfig:
+  validateConfig =
+    sourceConfig:
     let
-      errors = []
-        ++ (if !(sourceConfig ? repo) then ["'repo' is required"] else [])
-        ++ (if sourceConfig ? repo && !(lib.isString sourceConfig.repo) then ["'repo' must be a string"] else [])
-        ++ (if sourceConfig ? repo && lib.isString sourceConfig.repo && !(lib.hasInfix "/" sourceConfig.repo)
-            then ["'repo' must be in 'org/model' format"] else [])
-        ++ (if sourceConfig ? revision && !(lib.isString sourceConfig.revision) then ["'revision' must be a string"] else [])
-        ++ (if sourceConfig ? files && !(lib.isList sourceConfig.files) then ["'files' must be a list"] else []);
-    in {
-      valid = errors == [];
+      errors =
+        [ ]
+        ++ (if !(sourceConfig ? repo) then [ "'repo' is required" ] else [ ])
+        ++ (
+          if sourceConfig ? repo && !(lib.isString sourceConfig.repo) then
+            [ "'repo' must be a string" ]
+          else
+            [ ]
+        )
+        ++ (
+          if
+            sourceConfig ? repo && lib.isString sourceConfig.repo && !(lib.hasInfix "/" sourceConfig.repo)
+          then
+            [ "'repo' must be in 'org/model' format" ]
+          else
+            [ ]
+        )
+        ++ (
+          if sourceConfig ? revision && !(lib.isString sourceConfig.revision) then
+            [ "'revision' must be a string" ]
+          else
+            [ ]
+        )
+        ++ (
+          if sourceConfig ? files && !(lib.isList sourceConfig.files) then
+            [ "'files' must be a list" ]
+          else
+            [ ]
+        );
+    in
+    {
+      valid = errors == [ ];
       inherit errors;
     };
 
@@ -131,20 +161,23 @@ in {
   ];
 
   # Build dependencies
-  buildInputs = pkgs: with pkgs; [
-    curl
-    jq
-    cacert
-    coreutils
-  ];
+  buildInputs =
+    pkgs: with pkgs; [
+      curl
+      jq
+      cacert
+      coreutils
+    ];
 
   # Extract metadata from source config
-  extractMeta = sourceConfig:
+  extractMeta =
+    sourceConfig:
     let
       parts = lib.splitString "/" sourceConfig.repo;
       org = lib.elemAt parts 0;
       model = lib.elemAt parts 1;
-    in {
+    in
+    {
       inherit org model;
       revision = sourceConfig.revision or "main";
       sourceType = "huggingface";

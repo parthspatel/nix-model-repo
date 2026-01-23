@@ -55,6 +55,7 @@ in
 ```
 
 **Includes:**
+
 - ModelScan security scanning
 - No pickle files allowed
 - Safetensors only (no PyTorch .bin files)
@@ -70,6 +71,7 @@ validation = presets.standard;
 ```
 
 **Includes:**
+
 - ModelScan scanning
 - Pickle file scanning (warns but allows)
 - Basic file verification
@@ -83,6 +85,7 @@ validation = presets.minimal;
 ```
 
 **Includes:**
+
 - Basic file presence checks
 - Warnings instead of errors
 
@@ -104,6 +107,7 @@ validation = presets.paranoid;
 ```
 
 **Includes:**
+
 - Everything from `strict`
 - Content analysis
 - Metadata verification

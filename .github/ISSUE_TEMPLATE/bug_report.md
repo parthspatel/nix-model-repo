@@ -1,9 +1,9 @@
 ---
 name: Bug Report
 about: Report a bug in nix-model-repo
-title: '[BUG] '
+title: "[BUG] "
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 ## Description

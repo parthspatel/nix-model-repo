@@ -16,7 +16,7 @@
       };
       # This hash is for the empty mock model structure
       # To get the correct hash, build with a fake hash and Nix will tell you the real one
-      hash = "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=";  # empty
+      hash = "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="; # empty
     };
 
     # Mock model with minimal structure
@@ -25,7 +25,10 @@
       source.mock = {
         org = "test-org";
         model = "minimal-model";
-        files = [ "config.json" "tokenizer.json" ];
+        files = [
+          "config.json"
+          "tokenizer.json"
+        ];
       };
       hash = "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=";
     };

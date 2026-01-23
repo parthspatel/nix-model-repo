@@ -8,22 +8,37 @@ rec {
   #
 
   # Create a validator specification
-  mkValidator = {
-    name,
-    command,
-    description ? "",
-    onFailure ? "abort",
-    timeout ? 300,
-  }: {
-    inherit name command description onFailure timeout;
-  };
+  mkValidator =
+    {
+      name,
+      command,
+      description ? "",
+      onFailure ? "abort",
+      timeout ? 300,
+    }:
+    {
+      inherit
+        name
+        command
+        description
+        onFailure
+        timeout
+        ;
+    };
 
   # Create an inline custom validator
-  custom = { name, script, onFailure ? "abort", timeout ? 300 }: mkValidator {
-    inherit name onFailure timeout;
-    description = "Custom validator: ${name}";
-    command = script;
-  };
+  custom =
+    {
+      name,
+      script,
+      onFailure ? "abort",
+      timeout ? 300,
+    }:
+    mkValidator {
+      inherit name onFailure timeout;
+      description = "Custom validator: ${name}";
+      command = script;
+    };
 
   #
   # SECURITY VALIDATORS
@@ -106,38 +121,42 @@ rec {
   #
 
   # Verify required files exist
-  requiredFiles = files: mkValidator {
-    name = "required-files";
-    description = "Verify required files are present: ${lib.concatStringsSep ", " files}";
-    onFailure = "abort";
-    command = lib.concatMapStrings (f: ''
-      if [[ ! -f "$src/${f}" && ! -d "$src/${f}" ]]; then
-        echo "ERROR: Required file missing: ${f}" >&2
-        exit 1
-      fi
-      echo "Found: ${f}"
-    '') files;
-  };
+  requiredFiles =
+    files:
+    mkValidator {
+      name = "required-files";
+      description = "Verify required files are present: ${lib.concatStringsSep ", " files}";
+      onFailure = "abort";
+      command = lib.concatMapStrings (f: ''
+        if [[ ! -f "$src/${f}" && ! -d "$src/${f}" ]]; then
+          echo "ERROR: Required file missing: ${f}" >&2
+          exit 1
+        fi
+        echo "Found: ${f}"
+      '') files;
+    };
 
   # Enforce maximum model size
-  maxSize = limit: mkValidator {
-    name = "max-size-${limit}";
-    description = "Ensure model size is under ${limit}";
-    onFailure = "abort";
-    command = ''
-      limit_bytes=$(numfmt --from=iec "${limit}")
-      actual_bytes=$(du -sb "$src" | cut -f1)
+  maxSize =
+    limit:
+    mkValidator {
+      name = "max-size-${limit}";
+      description = "Ensure model size is under ${limit}";
+      onFailure = "abort";
+      command = ''
+        limit_bytes=$(numfmt --from=iec "${limit}")
+        actual_bytes=$(du -sb "$src" | cut -f1)
 
-      if [[ $actual_bytes -gt $limit_bytes ]]; then
+        if [[ $actual_bytes -gt $limit_bytes ]]; then
+          actual_human=$(numfmt --to=iec "$actual_bytes")
+          echo "ERROR: Model size $actual_human exceeds limit ${limit}" >&2
+          exit 1
+        fi
+
         actual_human=$(numfmt --to=iec "$actual_bytes")
-        echo "ERROR: Model size $actual_human exceeds limit ${limit}" >&2
-        exit 1
-      fi
-
-      actual_human=$(numfmt --to=iec "$actual_bytes")
-      echo "Model size: $actual_human (limit: ${limit})"
-    '';
-  };
+        echo "Model size: $actual_human (limit: ${limit})"
+      '';
+    };
 
   # Check that config.json is valid JSON
   validConfigJson = mkValidator {

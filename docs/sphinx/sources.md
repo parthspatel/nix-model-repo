@@ -27,12 +27,12 @@ source.huggingface = {
 **revision**
 : Type: `string` | Default: `"main"`
 : Git revision to fetch. Can be a branch name, tag, or full commit SHA.
-  Using a commit SHA is recommended for reproducibility.
+Using a commit SHA is recommended for reproducibility.
 
 **files**
 : Type: `list of string | null` | Default: `null` (all files)
 : Specific files to download. Useful for large models where you only need
-  certain files (e.g., only safetensors, not pytorch_model.bin).
+certain files (e.g., only safetensors, not pytorch_model.bin).
 
 ### Authentication
 
@@ -113,9 +113,10 @@ source.mlflow = {
 **trackingUri**
 : Type: `string` | Required: Yes
 : URL of the MLflow tracking server. Can be:
-  - `https://mlflow.example.com` - Remote server
-  - `http://localhost:5000` - Local development server
-  - `databricks://` - Databricks-hosted MLflow
+
+- `https://mlflow.example.com` - Remote server
+- `http://localhost:5000` - Local development server
+- `databricks://` - Databricks-hosted MLflow
 
 **modelName**
 : Type: `string` | Required: Yes
@@ -128,32 +129,37 @@ source.mlflow = {
 **modelStage**
 : Type: `string | null` | Required: Yes (unless `modelVersion` is specified)
 : Model stage to fetch. Common stages:
-  - `"Production"` - Production-ready models
-  - `"Staging"` - Models being validated
-  - `"Archived"` - Deprecated models
-  - `"None"` - Unassigned models
+
+- `"Production"` - Production-ready models
+- `"Staging"` - Models being validated
+- `"Archived"` - Deprecated models
+- `"None"` - Unassigned models
 
 ### Authentication
 
 MLflow supports multiple authentication methods:
 
 **Bearer Token (recommended for remote servers)**
+
 ```nix
 auth.tokenEnvVar = "MLFLOW_TRACKING_TOKEN";
 ```
 
 Set the environment variable before building:
+
 ```bash
 export MLFLOW_TRACKING_TOKEN="your-token-here"
 ```
 
 **Basic Authentication**
+
 ```bash
 export MLFLOW_TRACKING_USERNAME="user"
 export MLFLOW_TRACKING_PASSWORD="password"
 ```
 
 **Databricks**
+
 ```bash
 export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
 export DATABRICKS_TOKEN="your-databricks-token"
@@ -244,6 +250,7 @@ in {
 ### Output Structure
 
 The fetched model includes:
+
 - All model artifacts from the MLflow run
 - `MLmodel` file (if present) with model metadata
 - `.nix-model-repo-meta.json` with fetch metadata

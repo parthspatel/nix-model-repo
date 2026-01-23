@@ -5,7 +5,8 @@
 let
   version = import ../lib/version.nix { inherit lib; };
 
-in {
+in
+{
   unitTests = {
     # Test: version string exists
     testVersionExists = {

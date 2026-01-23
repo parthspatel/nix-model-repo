@@ -5,7 +5,8 @@
 let
   validators = import ./validators.nix { inherit lib; };
 
-in {
+in
+{
   #
   # STRICT PRESET
   # For production deployments - maximum security
@@ -27,7 +28,7 @@ in {
       validators.validHfStructure
     ];
     onFailure = "abort";
-    timeout = 600;  # 10 minutes for large models
+    timeout = 600; # 10 minutes for large models
   };
 
   #
@@ -56,16 +57,16 @@ in {
   #
   minimal = {
     enable = true;
-    skipDefaults = true;  # Skip slow security scans
+    skipDefaults = true; # Skip slow security scans
     defaults = {
       modelscan = false;
       pickleScan = false;
-      checksums = true;  # Always verify integrity
+      checksums = true; # Always verify integrity
     };
     validators = [
       validators.validHfStructure
     ];
-    onFailure = "warn";  # Don't fail builds for validation issues
+    onFailure = "warn"; # Don't fail builds for validation issues
     timeout = 60;
   };
 
@@ -81,7 +82,7 @@ in {
       pickleScan = false;
       checksums = false;
     };
-    validators = [];
+    validators = [ ];
     onFailure = "skip";
     timeout = 0;
   };
@@ -110,7 +111,7 @@ in {
       (validators.requiredFiles [ "config.json" ])
     ];
     onFailure = "abort";
-    timeout = 1200;  # 20 minutes
+    timeout = 1200; # 20 minutes
   };
 
   #
