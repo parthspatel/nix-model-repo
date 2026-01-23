@@ -68,8 +68,8 @@ jobs:
           fi
 
           echo "New version: $NEW_VERSION"
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Update VERSION file
         run: |

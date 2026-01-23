@@ -78,8 +78,25 @@
         version = import ./lib/version.nix { inherit (nixpkgs) lib; };
 
         # Instantiate model definitions with pkgs
+        # This recursively walks the definition tree and applies fetchModel
+        # to any attrset that looks like a model config (has name, source, hash)
         instantiate =
-          pkgs: defs: nixpkgs.lib.mapAttrsRecursive (_path: def: (mkLib pkgs).fetchModel def) defs;
+          pkgs:
+          let
+            isModelConfig = x: builtins.isAttrs x && x ? name && x ? source && x ? hash;
+            instantiateRecursive =
+              defs:
+              nixpkgs.lib.mapAttrs (
+                _name: value:
+                if isModelConfig value then
+                  (mkLib pkgs).fetchModel value
+                else if builtins.isAttrs value then
+                  instantiateRecursive value
+                else
+                  value
+              ) defs;
+          in
+          instantiateRecursive;
 
         # Create shell hook for HF cache setup
         mkShellHook = pkgs: config: (mkLib pkgs).mkShellHook config;
@@ -127,9 +144,20 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          disableValidation = def: def // { validation.enable = false; };
+          isModelConfig = x: builtins.isAttrs x && x ? name && x ? source && x ? hash;
+          disableValidationRecursive =
+            defs:
+            nixpkgs.lib.mapAttrs (
+              _name: value:
+              if isModelConfig value then
+                value // { validation.enable = false; }
+              else if builtins.isAttrs value then
+                disableValidationRecursive value
+              else
+                value
+            ) defs;
         in
-        self.lib.instantiate pkgs (nixpkgs.lib.mapAttrsRecursive (_: disableValidation) self.modelDefs)
+        self.lib.instantiate pkgs (disableValidationRecursive self.modelDefs)
       );
 
       # Packages (CLI tool, etc.)

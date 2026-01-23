@@ -55,5 +55,22 @@ in
 
   # Instantiate model definitions with this pkgs
   # Usage: instantiate modelDefs
-  instantiate = defs: lib.mapAttrsRecursive (_path: def: fetchModel def) defs;
+  # This recursively walks the definition tree and applies fetchModel
+  # to any attrset that looks like a model config (has name, source, hash)
+  instantiate =
+    let
+      isModelConfig = x: builtins.isAttrs x && x ? name && x ? source && x ? hash;
+      instantiateRecursive =
+        defs:
+        lib.mapAttrs (
+          _name: value:
+          if isModelConfig value then
+            fetchModel value
+          else if builtins.isAttrs value then
+            instantiateRecursive value
+          else
+            value
+        ) defs;
+    in
+    instantiateRecursive;
 }

@@ -38,8 +38,8 @@ jobs:
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "Release version: $VERSION"
 
       - name: Validate VERSION file
@@ -88,11 +88,13 @@ jobs:
 
       - name: Generate flake.lock summary
         run: |
-          echo "# Flake Inputs" > flake-inputs.md
-          echo "" >> flake-inputs.md
-          echo "| Input | URL | Rev |" >> flake-inputs.md
-          echo "|-------|-----|-----|" >> flake-inputs.md
-          nix flake metadata --json | jq -r '.locks.nodes | to_entries[] | select(.key != "root") | "| \(.key) | \(.value.original.url // .value.original.owner + "/" + .value.original.repo) | \(.value.locked.rev // "N/A") |"' >> flake-inputs.md
+          {
+            echo "# Flake Inputs"
+            echo ""
+            echo "| Input | URL | Rev |"
+            echo "|-------|-----|-----|"
+            nix flake metadata --json | jq -r '.locks.nodes | to_entries[] | select(.key != "root") | "| \(.key) | \(.value.original.url // .value.original.owner + "/" + .value.original.repo) | \(.value.locked.rev // "N/A") |"'
+          } > flake-inputs.md
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
