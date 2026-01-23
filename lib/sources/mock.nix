@@ -24,19 +24,17 @@
       commitSha = sourceConfig.commitSha or "0000000000000000000000000000000000000000";
 
     in
+    # Note: Mock source is NOT a fixed-output derivation since it doesn't fetch
+    # from the network. The hash in the config is ignored for mock sources.
+    # This is intentional - mock sources are for testing the pipeline, not
+    # for reproducible network fetches.
     pkgs.stdenvNoCC.mkDerivation {
       name = "${name}-raw";
-
-      # Fixed-output derivation settings
-      outputHashAlgo = "sha256";
-      outputHashMode = "recursive";
-      outputHash = hash;
 
       dontUnpack = true;
 
       nativeBuildInputs = with pkgs; [
         coreutils
-        jq
       ];
 
       buildPhase = ''
@@ -50,24 +48,28 @@
         # Create ref
         echo "${commitSha}" > refs/main
 
-        # Create mock files
+        # Create mock files (skip config.json as it's handled specially)
         ${lib.concatMapStrings (file: ''
-          # Create empty blob
-          touch "blobs/empty_${builtins.hashString "sha256" file}"
+          ${lib.optionalString (file != "config.json") ''
+            # Create empty blob content
+            blob_content="mock content for ${file}"
+            blob_hash=$(echo -n "$blob_content" | sha256sum | cut -d' ' -f1)
+            echo -n "$blob_content" > "blobs/$blob_hash"
 
-          # Create snapshot symlink
-          mkdir -p "snapshots/${commitSha}/$(dirname "${file}")"
-          ln -s "../../blobs/empty_${builtins.hashString "sha256" file}" "snapshots/${commitSha}/${file}"
+            # Create snapshot file (actual file, not symlink for simplicity)
+            mkdir -p "snapshots/${commitSha}/$(dirname "${file}")"
+            cp "blobs/$blob_hash" "snapshots/${commitSha}/${file}"
+          ''}
         '') files}
 
         # Create minimal config.json if in files list
         ${
           if lib.elem "config.json" files then
             ''
-              echo '{"model_type": "mock", "architectures": ["MockModel"]}' > snapshots/${commitSha}/config.json
-              config_hash=$(sha256sum snapshots/${commitSha}/config.json | cut -d' ' -f1)
-              mv snapshots/${commitSha}/config.json blobs/$config_hash
-              ln -sf "../../blobs/$config_hash" snapshots/${commitSha}/config.json
+              echo '{"model_type": "mock", "architectures": ["MockModel"]}' > config_tmp.json
+              config_hash=$(sha256sum config_tmp.json | cut -d' ' -f1)
+              mv config_tmp.json "blobs/$config_hash"
+              cp "blobs/$config_hash" "snapshots/${commitSha}/config.json"
             ''
           else
             ""
