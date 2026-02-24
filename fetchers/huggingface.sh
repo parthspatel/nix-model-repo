@@ -87,10 +87,31 @@ resolve_revision() {
     2. Click 'Access repository' and accept the license
     3. Retry the build"
       fi
-    else
-      error_exit "huggingface" "Failed to resolve revision" \
-        "Could not resolve revision '$revision' for $REPO. Check the repository and revision names."
     fi
+
+    # Fallback: use the model info endpoint which returns the HEAD commit SHA.
+    # This handles cases where the revision endpoint fails due to rate limiting,
+    # API changes, or when the default branch differs from the requested name.
+    log_warn "Revision endpoint failed, falling back to model info endpoint..."
+    local fallback_url="$HF_API/models/$REPO"
+    if response=$(hf_api_request "$fallback_url" 2>&1); then
+      local sha
+      sha=$(echo "$response" | jq -r '.sha // empty')
+      if [[ -n $sha ]]; then
+        log_info "Resolved via model info: $sha"
+        echo "$sha"
+        return
+      fi
+    fi
+
+    error_exit "huggingface" "Failed to resolve revision" \
+      "Could not resolve revision '$revision' for $REPO. Check the repository and revision names.
+
+  Tip: Pin to a specific commit SHA for reliable builds:
+    source.huggingface = {
+      repo = \"$REPO\";
+      revision = \"<40-char-commit-sha>\";
+    };"
   fi
 
   local sha
