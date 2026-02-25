@@ -52,19 +52,25 @@ hf_api_request() {
   curl "${curl_opts[@]}" "$endpoint"
 }
 
-# Resolve a revision (branch/tag) to a commit SHA
-resolve_revision() {
-  local revision="$1"
-
-  # If it looks like a full SHA (40 hex chars), use as-is
-  if [[ $revision =~ ^[0-9a-f]{40}$ ]]; then
-    echo "$revision"
+# Fetch model info: resolves revision to commit SHA and returns file list via siblings.
+# Uses GET /api/models/{repo}?revision={ref} — the same endpoint used by the official
+# HuggingFace Hub Python client (huggingface_hub.hf_api.model_info).
+# Returns the raw JSON response; callers extract .sha and .siblings[].rfilename.
+fetch_model_info() {
+  # If revision is already a full 40-hex SHA, use it directly to skip resolution.
+  if [[ $REVISION =~ ^[0-9a-fA-F]{40}$ ]]; then
+    # Build a minimal response so callers get a consistent structure.
+    # Siblings will be empty, so the caller will use the tree API for file listing.
+    echo "{\"sha\": \"$REVISION\", \"siblings\": []}"
     return
   fi
 
-  log_info "Resolving revision: $revision"
+  log_info "Resolving revision: $REVISION"
 
-  local api_url="$HF_API/models/$REPO/revision/$revision"
+  # The model info endpoint accepts revision as a query parameter — this is the
+  # canonical format used by the official HuggingFace Python library.
+  # The response includes both .sha (resolved commit) and .siblings (file list).
+  local api_url="$HF_API/models/$REPO?revision=$REVISION"
   local response
 
   if ! response=$(hf_api_request "$api_url" 2>&1); then
@@ -87,31 +93,30 @@ resolve_revision() {
     2. Click 'Access repository' and accept the license
     3. Retry the build"
       fi
-    else
-      error_exit "huggingface" "Failed to resolve revision" \
-        "Could not resolve revision '$revision' for $REPO. Check the repository and revision names."
     fi
+    error_exit "huggingface" "Failed to fetch model info" \
+      "Could not fetch info for $REPO @ $REVISION. Check the repository and revision names.
+
+  Tip: Pin to a specific commit SHA for reliable builds:
+    source.huggingface = {
+      repo = \"$REPO\";
+      revision = \"<40-char-commit-sha>\";
+    };"
   fi
 
-  local sha
-  sha=$(echo "$response" | jq -r '.sha // empty')
-
-  if [[ -z $sha ]]; then
-    error_exit "huggingface" "Invalid API response" \
-      "Could not extract commit SHA from API response"
-  fi
-
-  log_info "Resolved to commit: $sha"
-  echo "$sha"
+  echo "$response"
 }
 
-# Get list of files in the repository at a specific commit
-get_file_list() {
+# Get list of files in the repository at a specific commit via the tree API.
+# Used as a fallback when the model info response does not include siblings,
+# which can happen for large repositories (>1000 files).
+get_file_list_from_tree() {
   local commit_sha="$1"
 
-  log_info "Getting file list..."
+  log_info "Getting file list from tree API..."
 
-  local api_url="$HF_API/models/$REPO/tree/$commit_sha"
+  # Use ?recursive=true to include files in subdirectories
+  local api_url="$HF_API/models/$REPO/tree/$commit_sha?recursive=true"
   local response
 
   if ! response=$(hf_api_request "$api_url"); then
@@ -188,16 +193,36 @@ main() {
 
   mkdir -p "$blobs_dir" "$snapshots_dir" "$refs_dir"
 
-  # Step 1: Resolve revision to commit SHA
+  # Step 1: Fetch model info — resolves revision to commit SHA and gets file list
+  # in a single API call, matching how the official huggingface_hub Python client works.
+  local model_info
+  model_info=$(fetch_model_info)
+
   local commit_sha
-  commit_sha=$(resolve_revision "$REVISION")
+  commit_sha=$(echo "$model_info" | jq -r '.sha // empty')
+
+  if [[ -z $commit_sha ]]; then
+    error_exit "huggingface" "Invalid API response" \
+      "Could not extract commit SHA from model info response"
+  fi
+
+  log_info "Resolved to commit: $commit_sha"
 
   # Create snapshot directory for this commit
   mkdir -p "$snapshots_dir/$commit_sha"
 
-  # Step 2: Get and filter file list
+  # Step 2: Get file list — prefer siblings from model info (single API call),
+  # fall back to tree API for large repos where siblings may be absent/incomplete.
+  local files_raw
+  files_raw=$(echo "$model_info" | jq -r '.siblings[]? | .rfilename' 2>/dev/null || true)
+
+  if [[ -z $files_raw ]]; then
+    log_debug "No siblings in model info response, falling back to tree API"
+    files_raw=$(get_file_list_from_tree "$commit_sha")
+  fi
+
   local files
-  files=$(get_file_list "$commit_sha" | filter_file_list "$FILES")
+  files=$(echo "$files_raw" | filter_file_list "$FILES")
 
   if [[ -z $files ]]; then
     if [[ -n $FILES ]]; then
