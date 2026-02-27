@@ -184,7 +184,7 @@ download_file() {
     # Try to get HTTP code for better error message
     # Include auth header so we get the real error (e.g., 403 for gated models)
     # instead of a misleading 401 from an unauthenticated retry
-    local retry_opts=(-s -o /dev/null -w "%{http_code}")
+    local retry_opts=(-s -o /dev/null -w "%{http_code}" --location)
     if [[ -n $token ]]; then
       retry_opts+=(--header "Authorization: Bearer $token")
     fi
