@@ -23,7 +23,25 @@ set -euo pipefail
 
 # Optional variables with defaults
 FILES="${FILES:-}"
+
+# Token resolution order:
+# 1. HF_TOKEN env var (may be empty in multi-user Nix daemon builds)
+# 2. HUGGING_FACE_HUB_TOKEN env var
+# 3. HF_TOKEN_FILE env var (path to file containing token)
+# 4. Standard HuggingFace CLI token location (~/.cache/huggingface/token)
 HF_TOKEN="${HF_TOKEN:-${HUGGING_FACE_HUB_TOKEN:-}}"
+if [[ -z $HF_TOKEN && -n ${HF_TOKEN_FILE:-} ]]; then
+  if [[ -r $HF_TOKEN_FILE ]]; then
+    HF_TOKEN=$(tr -d '[:space:]' < "$HF_TOKEN_FILE")
+    log_info "Loaded token from file: $HF_TOKEN_FILE"
+  else
+    log_warn "HF_TOKEN_FILE is set to '$HF_TOKEN_FILE' but the file is not readable"
+  fi
+fi
+if [[ -z $HF_TOKEN && -r "${HOME:-}/.cache/huggingface/token" ]]; then
+  HF_TOKEN=$(tr -d '[:space:]' < "$HOME/.cache/huggingface/token")
+  log_info "Loaded token from ~/.cache/huggingface/token"
+fi
 
 # HuggingFace API endpoints
 HF_API="https://huggingface.co/api"
