@@ -182,8 +182,14 @@ download_file() {
   if ! curl "${curl_opts[@]}" "$url"; then
     local exit_code=$?
     # Try to get HTTP code for better error message
+    # Include auth header so we get the real error (e.g., 403 for gated models)
+    # instead of a misleading 401 from an unauthenticated retry
+    local retry_opts=(-s -o /dev/null -w "%{http_code}")
+    if [[ -n $token ]]; then
+      retry_opts+=(--header "Authorization: Bearer $token")
+    fi
     local http_code
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    http_code=$(curl "${retry_opts[@]}" "$url" 2>/dev/null || echo "000")
     if [[ $http_code != "000" && $http_code != "200" ]]; then
       handle_http_error "$http_code" "$url" "${SOURCE_TYPE:-unknown}"
     fi
