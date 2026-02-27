@@ -20,6 +20,8 @@
         };
         hash = "sha256-vBGuv49GNFg9EMEKLL4lkhG8daxCTQE4oCXzL9HK40k=";
         auth.tokenEnvVar = "HF_TOKEN";
+        # NOTE: .envrc writes HF_TOKEN to this path so it is accessible
+        # by the Nix build daemon on macOS. See examples/.envrc.
         auth.tokenFile = "/tmp/nix-model-repo-hf-token";
       };
     };

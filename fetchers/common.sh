@@ -192,6 +192,8 @@ download_file() {
     http_code=$(curl "${retry_opts[@]}" "$url" 2>/dev/null || echo "000")
     if [[ $http_code != "000" && $http_code != "200" ]]; then
       handle_http_error "$http_code" "$url" "${SOURCE_TYPE:-unknown}"
+    elif [[ $http_code == "200" ]]; then
+      log_warn "Download failed but diagnostic request succeeded — this may be a transient issue. Re-run the build to retry."
     fi
     return $exit_code
   fi
