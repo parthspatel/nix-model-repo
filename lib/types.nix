@@ -325,7 +325,7 @@ rec {
   defaultNetwork = {
     timeout = {
       connect = 30;
-      read = 300;
+      read = 0; # 0 = no limit; large model files can take hours
     };
     retry = {
       maxAttempts = 3;
