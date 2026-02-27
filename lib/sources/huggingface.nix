@@ -70,6 +70,11 @@ in
           auth.tokenEnvVar
         ];
 
+      # Token file path for authentication
+      # When impureEnvVars can't pass HF_TOKEN (e.g., macOS multi-user Nix),
+      # the fetcher script reads the token from this file path instead.
+      HF_TOKEN_FILE = auth.tokenFile or "";
+
       # Environment variables for the fetcher script
       REPO = repo;
       REVISION = revision;
